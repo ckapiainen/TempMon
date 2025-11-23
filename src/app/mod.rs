@@ -1,7 +1,8 @@
+mod cpu_total_power_and_usage_graph;
 pub mod layout;
 pub mod main_window;
 pub mod modal;
 pub mod plot_window;
 pub mod settings;
 pub mod styles;
-mod termperature_graph;
+mod temp_graph;

@@ -34,7 +34,7 @@ impl TemperatureGraph {
                 .with_x_lim(0.0, 60.0)
                 .with_y_lim(20.0, 100.0)
                 .with_y_tick_producer(|min, max| {
-                    let tick_interval = 10.0;
+                    let tick_interval = 15.0;
                     let start = (min / tick_interval).floor() * tick_interval;
                     let mut ticks = Vec::new();
                     let mut value = start;
@@ -114,11 +114,11 @@ impl TemperatureGraph {
         if !cpu_temp_series.is_empty() {
             let current_time = cpu_temp_series.last().unwrap()[0];
             let window_size = 60.0;
-
-            // Shift the camera to follow the latest data
-            if current_time > window_size {
-                self.widget
-                    .set_x_lim(current_time - window_size, current_time);
+            let right_padding = 12.0; // start rolling the graph 12 sec before the end
+            let view_end = current_time + right_padding;
+            // Scrolling logic
+            if view_end > window_size {
+                self.widget.set_x_lim(view_end - window_size, view_end);
             } else {
                 self.widget.set_x_lim(0.0, window_size);
             }
@@ -137,7 +137,7 @@ impl TemperatureGraph {
             self.widget.remove_series("CPU Temperature");
 
             let temp_series =
-                Series::new(cpu_temp_series, MarkerStyle::circle(6.0), LineStyle::Solid)
+                Series::new(cpu_temp_series, MarkerStyle::circle(3.0), LineStyle::Solid)
                     .with_label("CPU Temperature")
                     .with_color(Color::from_rgb(1.0, 0.2, 0.2));
 
