@@ -86,6 +86,7 @@ fn main() -> iced::Result {
     iced::daemon(App::new, App::update, App::view)
         .subscription(App::subscription)
         .title("TempMon")
+        .antialiasing(true)
         .theme(App::theme)
         .run()
 }
@@ -378,7 +379,11 @@ impl App {
                 Task::none()
             }
             AppMessage::PlotWindow(msg) => {
-                self.plot_window.update(&self.csv_logger, msg);
+                self.plot_window.update(
+                    &self.csv_logger,
+                    msg,
+                    self.settings.selected_temp_units.unwrap(),
+                );
                 Task::none()
             }
             AppMessage::UpdateHardwareData => {
@@ -427,8 +432,13 @@ impl App {
                         self.last_error = Some(error_msg);
                     }
                 }
-                self.plot_window
-                    .update(&self.csv_logger, PlotWindowMessage::Tick);
+                self.plot_window.update(
+                    &self.csv_logger,
+                    PlotWindowMessage::Tick,
+                    self.settings
+                        .selected_temp_units
+                        .unwrap_or(app::settings::TempUnits::Celsius),
+                );
                 Task::none()
             }
         }
