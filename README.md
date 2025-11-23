@@ -36,14 +36,16 @@ Cross-platform system information library for basic CPU metrics:
 - ✅ CPU metrics collection (temperature, usage, power draw, frequency)
 - ✅ System tray icon when minimized
 - ✅ CSV logging for historical data
+- ✅ Real time plotting for CPU
 
-### Planned for v1.0-v1.5
+### Planned for v1.0-v2.0
 
 - 🚧 Real-time and historical data visualization with charts
 - 🚧 GPU and other hardware monitoring
-- 🚧 General system information
+- 🚧 Detailed system information
 - 🚧 Process specific logging
 - 🚧 Application state persistence
+- 🚧 Linux port
 - And more...
 
 ## Download

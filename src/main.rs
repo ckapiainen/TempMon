@@ -1,6 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide terminal on Windows
 mod app;
-mod chart;
 mod collectors;
 mod utils;
 
@@ -207,6 +206,13 @@ impl App {
         let settings = Settings::load().expect("Error loading settings");
         let current_theme = settings.theme.clone();
         let csv_logger = CsvLogger::new(None).expect("Failed to create CSV logger");
+        let plot_window = plot_window::PlotWindow::new(
+            settings
+                .selected_temp_units
+                .as_ref()
+                .map(|u| u.to_string())
+                .unwrap_or_else(|| "C".to_string()),
+        );
 
         // Create task to connect to hardware monitor
         let connect_task = Task::future(async {
@@ -224,7 +230,7 @@ impl App {
                 current_theme,
                 settings,
                 main_window: main_window::MainWindow::new(),
-                plot_window: plot_window::PlotWindow::new(),
+                plot_window,
                 tray_icon,
                 show_menu_id: show_id,
                 quit_menu_id: quit_id,

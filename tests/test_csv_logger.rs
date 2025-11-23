@@ -111,7 +111,7 @@ mod tests {
             logger.write(entry).unwrap();
         }
 
-        assert_eq!(logger.graph_data.len(), 5);
+        assert_eq!(logger.graph_data_buffer.len(), 5);
         assert_eq!(logger.write_buffer.len(), 5);
     }
 }
