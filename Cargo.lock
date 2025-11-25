@@ -2025,7 +2025,7 @@ dependencies = [
 [[package]]
 name = "iced_plot"
 version = "0.1.0"
-source = "git+https://github.com/donkeyteethUX/iced_plot#61048879f73071cc40e42f5a244ddff254486aef"
+source = "git+https://github.com/ckapiainen/iced_plot?branch=font-edit-and-line-width#cbc98e0f43eb4fbb3b0aa30d8bede53a932dc55b"
 dependencies = [
  "bytemuck",
  "glam 0.30.9",

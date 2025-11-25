@@ -30,6 +30,8 @@ pub struct MainWindow {
     now: Instant,
 }
 
+//TODO: Responsive layout: max size for cards and move them according to screen size (switch between column/row or some better way with iced api)
+// TODO: 5 sec timeout before setting min/max values. 100% max value clips with box next to it
 impl MainWindow {
     pub fn new() -> Self {
         Self {

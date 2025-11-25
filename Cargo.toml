@@ -8,7 +8,8 @@ build = "build.rs"
 
 [dependencies]
 iced = { git = "https://github.com/iced-rs/iced", rev = "bfc27e4", features = ["tokio", "wgpu", "image", "svg", "canvas"] }
-iced_plot = { git = "https://github.com/donkeyteethUX/iced_plot" }
+iced_plot = { git = "https://github.com/ckapiainen/iced_plot", branch = "font-edit-and-line-width" }
+
 anyhow = "1.0.100"
 tokio = { version = "=1.45.1", features = ["rt", "time", "fs", "macros"] }
 colored = "3.0.0"

@@ -57,6 +57,8 @@ impl TemperatureGraph {
                 .with_cursor_provider(move |x, y| {
                     format!("Time: {:.0}\nTemp: {:.1}°{}", x, y, units)
                 })
+                .with_tick_label_size(12.0)
+                .with_axis_label_size(13.0)
                 .add_series(dummy_series)
                 .build()
                 .unwrap(),
@@ -136,10 +138,13 @@ impl TemperatureGraph {
             self.widget.remove_series("waiting for data");
             self.widget.remove_series("CPU Temperature");
 
-            let temp_series =
-                Series::new(cpu_temp_series, MarkerStyle::circle(3.0), LineStyle::Solid)
-                    .with_label("CPU Temperature")
-                    .with_color(Color::from_rgb(1.0, 0.2, 0.2));
+            let temp_series = Series::new(
+                cpu_temp_series,
+                MarkerStyle::circle(3.0),
+                LineStyle::Solid { width: 7.0 },
+            )
+            .with_label("CPU Temperature")
+            .with_color(Color::from_rgb(1.0, 0.2, 0.2));
 
             self.widget.add_series(temp_series).unwrap();
         }
