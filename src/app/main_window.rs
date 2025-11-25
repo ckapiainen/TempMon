@@ -7,6 +7,12 @@ use iced::{font, never, window, Center, Element, Fill, Font, Padding, Subscripti
 use lilt::{Animated, Easing};
 use std::time::Instant;
 
+// Card animation height constants
+const GENERAL_CARD_COLLAPSED_HEIGHT: f32 = 50.0;
+const GENERAL_CARD_EXPANDED_HEIGHT: f32 = 260.0;
+const CORES_CARD_COLLAPSED_HEIGHT: f32 = 50.0;
+const CORES_CARD_EXPANDED_HEIGHT: f32 = 280.0;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BarChartState {
     Usage,
@@ -96,12 +102,13 @@ impl MainWindow {
         General CPU info card
         */
 
-        // Animate height between collapsed (50px) and expanded (260px)
+        // Animate height between collapsed and expanded
         // 1.0 = expanded, 0.0 = collapsed
         let animation_factor = self
             .general_info_expanded
             .animate(std::convert::identity, self.now);
-        let general_card_height = 50.0 + (animation_factor * (260.0 - 50.0));
+        let general_card_height = GENERAL_CARD_COLLAPSED_HEIGHT
+            + (animation_factor * (GENERAL_CARD_EXPANDED_HEIGHT - GENERAL_CARD_COLLAPSED_HEIGHT));
         let is_general_expanded = self.general_info_expanded.value > 0.5;
 
         // Clickable header
@@ -313,12 +320,13 @@ impl MainWindow {
           Cores card with collapse functionality
         */
 
-        // Animate height between collapsed (50px) and expanded (280px)
+        // Animate height between collapsed and expanded
         // 1.0 = expanded, 0.0 = collapsed
         let cores_animation_factor = self
             .cores_card_expanded
             .animate(std::convert::identity, self.now);
-        let cores_card_height = 50.0 + (cores_animation_factor * (280.0 - 50.0));
+        let cores_card_height = CORES_CARD_COLLAPSED_HEIGHT
+            + (cores_animation_factor * (CORES_CARD_EXPANDED_HEIGHT - CORES_CARD_COLLAPSED_HEIGHT));
         let is_cores_expanded = self.cores_card_expanded.value > 0.5;
 
         // Icon buttons for usage and power

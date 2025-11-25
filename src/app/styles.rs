@@ -266,3 +266,53 @@ pub fn thin_scrollbar_style(_theme: &Theme, _status: scrollable::Status) -> scro
         gap: None,
     }
 }
+// Add this to styles.rs
+
+pub fn ghost_icon_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::TRANSPARENT)),
+            border: iced::Border {
+                color: Color::TRANSPARENT,
+                width: 0.0,
+                radius: iced::border::Radius::from(8.0),
+            },
+            text_color: iced::Color::from_rgb(0.85, 0.85, 0.85),
+            shadow: iced::Shadow::default(),
+            snap: false,
+        },
+        button::Status::Hovered => button::Style {
+            background: Some(Background::Color(iced::Color::from_rgba(
+                1.0, 1.0, 1.0, 0.1,
+            ))),
+            border: iced::Border {
+                color: iced::Color::from_rgba(1.0, 1.0, 1.0, 0.2),
+                width: 1.0,
+                radius: iced::border::Radius::from(8.0),
+            },
+            text_color: iced::Color::WHITE,
+            shadow: iced::Shadow::default(),
+            snap: false,
+        },
+        button::Status::Pressed => button::Style {
+            background: Some(Background::Color(iced::Color::from_rgba(
+                1.0, 1.0, 1.0, 0.05,
+            ))),
+            border: iced::Border {
+                color: iced::Color::TRANSPARENT,
+                width: 0.0,
+                radius: iced::border::Radius::from(8.0),
+            },
+            text_color: iced::Color::from_rgb(0.75, 0.75, 0.75),
+            shadow: iced::Shadow::default(),
+            snap: false,
+        },
+        button::Status::Disabled => button::Style {
+            background: Some(Background::Color(Color::TRANSPARENT)),
+            border: iced::Border::default(),
+            text_color: iced::Color::from_rgb(0.4, 0.4, 0.4),
+            shadow: iced::Shadow::default(),
+            snap: false,
+        },
+    }
+}

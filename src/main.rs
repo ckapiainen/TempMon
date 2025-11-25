@@ -475,6 +475,7 @@ impl App {
             iced::time::every(Duration::from_secs_f32(self.settings.data_update_interval))
                 .map(|_| AppMessage::UpdateHardwareData),
             tray_events_subscription(),
+            self.plot_window.subscription().map(AppMessage::PlotWindow),
             self.main_window.subscription().map(AppMessage::MainWindow),
         ])
     }
