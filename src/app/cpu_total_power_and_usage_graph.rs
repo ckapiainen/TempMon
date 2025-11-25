@@ -19,7 +19,6 @@ impl PowerAndUsageGraph {
 
         Self {
             widget: PlotWidgetBuilder::new()
-                .with_y_label("Power (W) / Usage (%)")
                 .with_x_label("Time (s)")
                 .with_tooltips(true)
                 .with_tooltip_provider(|ctx: &TooltipContext| {
@@ -47,9 +46,27 @@ impl PowerAndUsageGraph {
 
                     ticks
                 })
+                .with_x_tick_producer(|min, max| {
+                    let tick_interval = 25.0;
+                    let start = (min / tick_interval).floor() * tick_interval;
+                    let mut ticks = Vec::new();
+                    let mut value = start;
+
+                    while value <= max {
+                        if value >= min {
+                            ticks.push(Tick {
+                                value,
+                                step_size: tick_interval,
+                                line_type: TickWeight::Major,
+                            });
+                        }
+                        value += tick_interval;
+                    }
+
+                    ticks
+                })
                 .with_y_tick_formatter(|tick| format!("{:.1}", tick.value))
-                .with_tick_label_size(12.0)
-                .with_axis_label_size(13.0)
+                .with_tick_label_size(10.0)
                 .with_crosshairs(true)
                 .with_cursor_provider(|x, y| format!("Time: {:.0}s\nValue: {:.1}", x, y))
                 .add_series(dummy_series)
@@ -140,7 +157,7 @@ impl PowerAndUsageGraph {
             let power = Series::new(
                 power_series,
                 MarkerStyle::circle(3.0),
-                LineStyle::Solid { width: 7.0 },
+                LineStyle::Solid { width: 5.0 },
             )
             .with_label("CPU Power (W)")
             .with_color(Color::from_rgb(1.0, 0.6, 0.0)); // Orange
@@ -149,7 +166,7 @@ impl PowerAndUsageGraph {
             let usage = Series::new(
                 usage_series,
                 MarkerStyle::circle(3.0),
-                LineStyle::Solid { width: 7.0 },
+                LineStyle::Solid { width: 5.0 },
             )
             .with_label("CPU Usage (%)")
             .with_color(Color::from_rgb(0.2, 0.6, 1.0)); // Blue

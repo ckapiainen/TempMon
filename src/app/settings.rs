@@ -368,15 +368,10 @@ impl Settings {
 
         // Modal content container
         let modal_content = container(content)
-            .width(500)
+            .width(550)
             .height(600)
             .style(styles::modal_generic);
 
-        modal(
-            base,
-            modal_content,
-            crate::AppMessage::HideSettingsModal,
-            false,
-        )
+        modal(base, modal_content, AppMessage::HideSettingsModal, false)
     }
 }

@@ -24,7 +24,6 @@ impl TemperatureGraph {
 
         Self {
             widget: PlotWidgetBuilder::new()
-                .with_y_label(format!("Temperature (°{})", units))
                 .with_x_label("Time (s)")
                 .with_tooltips(true)
                 .with_tooltip_provider(|ctx: &TooltipContext| {
@@ -52,13 +51,31 @@ impl TemperatureGraph {
 
                     ticks
                 })
+                .with_x_tick_producer(|min, max| {
+                    let tick_interval = 25.0;
+                    let start = (min / tick_interval).floor() * tick_interval;
+                    let mut ticks = Vec::new();
+                    let mut value = start;
+
+                    while value <= max {
+                        if value >= min {
+                            ticks.push(Tick {
+                                value,
+                                step_size: tick_interval,
+                                line_type: TickWeight::Major,
+                            });
+                        }
+                        value += tick_interval;
+                    }
+
+                    ticks
+                })
                 .with_y_tick_formatter(|tick| format!("{:.1}", tick.value))
                 .with_crosshairs(true)
                 .with_cursor_provider(move |x, y| {
                     format!("Time: {:.0}\nTemp: {:.1}°{}", x, y, units)
                 })
                 .with_tick_label_size(12.0)
-                .with_axis_label_size(13.0)
                 .add_series(dummy_series)
                 .build()
                 .unwrap(),
@@ -79,12 +96,12 @@ impl TemperatureGraph {
         if buffer.is_empty() {
             return;
         }
-        let label = match units {
-            TempUnits::Celsius => "Temperature (°C)",
-            TempUnits::Fahrenheit => "Temperature (°F)",
-        };
+        // let label = match units {
+        //     TempUnits::Celsius => "Temperature (°C)",
+        //     TempUnits::Fahrenheit => "Temperature (°F)",
+        // };
         // Set y label and limits based on selected units
-        self.widget.set_y_axis_label(label);
+        // self.widget.set_y_axis_label(label);
         match units {
             TempUnits::Celsius => self.widget.set_y_lim(20.0, 100.0),
             TempUnits::Fahrenheit => self.widget.set_y_lim(32.0, 212.0),
@@ -141,7 +158,7 @@ impl TemperatureGraph {
             let temp_series = Series::new(
                 cpu_temp_series,
                 MarkerStyle::circle(3.0),
-                LineStyle::Solid { width: 7.0 },
+                LineStyle::Solid { width: 5.0 },
             )
             .with_label("CPU Temperature")
             .with_color(Color::from_rgb(1.0, 0.2, 0.2));
