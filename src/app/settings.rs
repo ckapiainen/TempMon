@@ -85,10 +85,17 @@ impl Default for Settings {
 // "Show CPU usage" checkbox
 // "Show power draw" checkbox
 impl Settings {
-    const CONFIG_PATH: &'static str = "config/cfg.toml";
+    // Helper function to get config path in AppData
+    fn get_config_path() -> std::path::PathBuf {
+        if let Some(data_dir) = dirs::data_local_dir() {
+            data_dir.join("TempMon").join("config").join("cfg.toml")
+        } else {
+            std::path::PathBuf::from("config/cfg.toml")
+        }
+    }
 
     pub fn load() -> Result<Self> {
-        let path = Path::new(Self::CONFIG_PATH);
+        let path = Self::get_config_path();
 
         // Create config directory if needed
         if !path.exists() {
@@ -96,8 +103,8 @@ impl Settings {
             default.save()?;
             return Ok(default);
         }
-        let contents = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config from {}", Self::CONFIG_PATH))?;
+        let contents = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read config from {:?}", path))?;
         let config: Config = toml::from_str(&contents).with_context(|| "Failed to parse config")?;
 
         let theme = match config.theme.as_str() {
@@ -126,7 +133,7 @@ impl Settings {
     }
 
     pub fn save(&self) -> Result<()> {
-        let path = Path::new(Self::CONFIG_PATH);
+        let path = Self::get_config_path();
 
         // Create directory if needed
         if let Some(parent) = path.parent() {
@@ -147,8 +154,8 @@ impl Settings {
         };
 
         let toml = toml::to_string_pretty(&config).context("Failed to serialize config")?;
-        fs::write(Self::CONFIG_PATH, toml)
-            .with_context(|| format!("Failed to write config to {}", Self::CONFIG_PATH))?;
+        fs::write(&path, toml)
+            .with_context(|| format!("Failed to write config to {:?}", path))?;
         dbg!("Saved config to disk");
         Ok(())
     }

@@ -27,11 +27,24 @@ pub struct CsvLogger {
 }
 
 impl CsvLogger {
+    // Helper function to get logs directory in AppData
+    fn get_logs_dir() -> PathBuf {
+        if let Some(data_dir) = dirs::data_local_dir() {
+            data_dir.join("TempMon").join("logs")
+        } else {
+            PathBuf::from("logs")
+        }
+    }
+
     pub fn new(custom_dir_path: Option<&str>) -> Result<Self> {
-        let dir = custom_dir_path.unwrap_or("logs");
-        fs::create_dir_all(dir)?;
+        let dir = if let Some(custom) = custom_dir_path {
+            PathBuf::from(custom)
+        } else {
+            Self::get_logs_dir()
+        };
+        fs::create_dir_all(&dir)?;
         let date_str = Local::now().format("%d-%m-%Y").to_string();
-        let path = PathBuf::from(format!("{}/{}_cpu_logs.csv", dir, date_str));
+        let path = dir.join(format!("{}_cpu_logs.csv", date_str));
 
         let wtr = Self::open_csv_writer(&path)?;
 
@@ -72,8 +85,8 @@ impl CsvLogger {
             self.flush_buffer()?;
 
             self.timestamp = today;
-            let new_filename = format!("logs/{}_cpu_logs.csv", date_str);
-            self.path = PathBuf::from(&new_filename);
+            let logs_dir = Self::get_logs_dir();
+            self.path = logs_dir.join(format!("{}_cpu_logs.csv", date_str));
             self.wtr = Self::open_csv_writer(&self.path)?;
         }
 
