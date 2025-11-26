@@ -1,4 +1,5 @@
 use crate::app::styles;
+use crate::assets;
 use crate::AppMessage;
 use iced::widget::{button, column, container, row, svg};
 use iced::{Center, Element, Fill};
@@ -7,7 +8,7 @@ use iced::{Center, Element, Fill};
 pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
     let main_page_button = button(
         container(
-            svg(svg::Handle::from_path("assets/icons/menu.svg"))
+            svg(svg::Handle::from_memory(assets::MENU_ICON))
                 .width(30)
                 .height(30),
         )
@@ -21,7 +22,7 @@ pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
 
     let plotter_page = button(
         container(
-            svg(svg::Handle::from_path("assets/icons/chart-spline.svg"))
+            svg(svg::Handle::from_memory(assets::CHART_SPLINE_ICON))
                 .width(30)
                 .height(30),
         )
@@ -35,7 +36,7 @@ pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
 
     let settings_page = button(
         container(
-            svg(svg::Handle::from_path("assets/icons/settings.svg"))
+            svg(svg::Handle::from_memory(assets::SETTINGS_ICON))
                 .width(30)
                 .height(30),
         )

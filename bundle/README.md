@@ -1,4 +1,11 @@
-## Local service installation:
+## Automatic Installation via NSIS Installer (Recommended)
+
+When using the NSIS installer package, PawnIO driver is installed automatically in silent mode.
+
+For troubleshooting, check Windows Event Viewer or run `sc query PawnIO` after installation to see if driver was
+installed.
+
+## Manual Service Installation:
 
 ### User Requirements:
 
@@ -16,17 +23,20 @@ bundle/
 ```
 
 ### pawnio-installer.exe
+
 - **Purpose**: Installs PawnIO kernel driver for hardware monitoring
 - **Source**: https://pawnio.com
 - **Version**: 1.0.x (check official site for latest)
 
 ### lhm-service.exe
+
 - **Purpose**: LibreHardwareMonitor Windows service
 - **Source**: Built from LibreHardwareMonitorLib 0.9.5-pre528
 - **Repository**: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
 - **Note**: Runs as Windows service to provide hardware data
 
 ### lhm-bridge.dll
+
 - **Purpose**: Bridge DLL for communicating with LibreHardwareMonitor service
 - **Source**: Built from LibreHardwareMonitorLib 0.9.5-pre528
 - **Repository**: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor

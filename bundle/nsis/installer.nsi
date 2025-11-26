@@ -42,12 +42,24 @@ Section "MainSection" SEC01
     ; Install main binary
     File "{{main_binary_path}}"
 
-    ; Install all resources
+    ; Create subdirectories
+    CreateDirectory "$INSTDIR\assets"
+    CreateDirectory "$INSTDIR\bundle"
+
+    ; Copy all resources to root first
     {{#each resources}}
-    File /a "/oname={{this}}" "{{@key}}"
+    File "{{@key}}"
     {{/each}}
 
-    ; Check and install PawnIO driver
+    ; Move files to correct subdirectories
+    Rename "$INSTDIR\logo.ico" "$INSTDIR\assets\logo.ico"
+    Rename "$INSTDIR\PawnIO_setup.exe" "$INSTDIR\bundle\PawnIO_setup.exe"
+    Rename "$INSTDIR\lhm-service.exe" "$INSTDIR\bundle\lhm-service.exe"
+    Rename "$INSTDIR\lhm-bridge.dll" "$INSTDIR\bundle\lhm-bridge.dll"
+
+    SetOutPath "$INSTDIR"
+
+    ; Check and install PawnIO driver (silent mode)
     DetailPrint "Checking for PawnIO driver..."
     ; Check if the actual driver service exists (not just registry key)
     ExecWait 'sc query PawnIO' $0
@@ -55,13 +67,38 @@ Section "MainSection" SEC01
         ; Driver service not found, try alternate name
         ExecWait 'sc query PawnIO3' $0
         ${If} $0 != 0
-            ; Neither service found, install PawnIO
-            DetailPrint "PawnIO driver not found, installing..."
-            ExecWait '"$INSTDIR\PawnIO_setup.exe"' $1
+            ; Neither service found, install PawnIO silently
+            DetailPrint "PawnIO driver not found, installing silently..."
+            DetailPrint "Please wait (this may take 30-60 seconds)..."
+
+            ; Use -silent -install flags for fully automated installation
+            ExecWait '"$INSTDIR\bundle\PawnIO_setup.exe" -silent -install' $1
+
+            ; Enhanced error handling
             ${If} $1 == 0
                 DetailPrint "PawnIO installed successfully"
+            ${ElseIf} $1 == 3010
+                DetailPrint "PawnIO installed successfully (system reboot required)"
+                DetailPrint "Application will function after reboot"
             ${Else}
-                DetailPrint "Warning: PawnIO installation returned code $1 (may require reboot)"
+                DetailPrint "Warning: PawnIO installation returned code $1"
+                DetailPrint "The application may have limited functionality"
+            ${EndIf}
+
+            ; Verify installation
+            DetailPrint "Verifying PawnIO installation..."
+            Sleep 2000
+            ExecWait 'sc query PawnIO' $2
+            ${If} $2 == 0
+                DetailPrint "PawnIO driver verified successfully"
+            ${Else}
+                ExecWait 'sc query PawnIO3' $2
+                ${If} $2 == 0
+                    DetailPrint "PawnIO3 driver verified successfully"
+                ${Else}
+                    DetailPrint "Note: PawnIO driver verification returned code $2"
+                    DetailPrint "Driver may require system reboot to become active"
+                ${EndIf}
             ${EndIf}
         ${Else}
             DetailPrint "PawnIO driver already loaded (PawnIO3)"
@@ -77,7 +114,7 @@ Section "MainSection" SEC01
     ${If} $0 != 0
         DetailPrint "LHM service not found, installing..."
         ; Create service with sc create
-        ExecWait 'sc create LibreHardwareMonitorService binPath= "$INSTDIR\lhm-service.exe" start= auto DisplayName= "LibreHardwareMonitor Service" type= own' $0
+        ExecWait 'sc create LibreHardwareMonitorService binPath= "$INSTDIR\bundle\lhm-service.exe" start= auto DisplayName= "LibreHardwareMonitor Service" type= own' $0
         ${If} $0 == 0
             DetailPrint "Service created successfully"
             ; Start the service
@@ -130,9 +167,8 @@ Section "Uninstall"
     ExecWait 'sc delete LibreHardwareMonitorService' $0
 
 skip_service:
-    ; Remove files
+    ; Remove files and directories (recursive removal handles all subdirectories)
     Delete "$INSTDIR\temp-monitor.exe"
-    Delete "$INSTDIR\lhm-service.exe"
     Delete "$INSTDIR\uninstall.exe"
     RMDir /r "$INSTDIR"
 

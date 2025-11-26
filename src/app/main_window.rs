@@ -1,4 +1,5 @@
 use crate::app::styles;
+use crate::assets;
 use crate::collectors::cpu_collector::CpuData;
 use iced::widget::{
     button, column, container, progress_bar, rich_text, row, rule, span, svg, text, Row,
@@ -114,7 +115,7 @@ impl MainWindow {
         // Clickable header
         let general_header_button = button(
             row![
-                svg(svg::Handle::from_path("assets/icons/cpu.svg"))
+                svg(svg::Handle::from_memory(assets::CPU_ICON))
                     .width(25)
                     .height(25),
                 rich_text([span(&cpu_data.name).font(Font {
@@ -332,7 +333,7 @@ impl MainWindow {
         // Icon buttons for usage and power
         let usage_button = button(
             container(
-                svg(svg::Handle::from_path("assets/icons/microchip.svg"))
+                svg(svg::Handle::from_memory(crate::assets::MICROCHIP_ICON))
                     .width(25)
                     .height(25),
             )
@@ -346,7 +347,7 @@ impl MainWindow {
 
         let power_button = button(
             container(
-                svg(svg::Handle::from_path("assets/icons/plug-zap.svg"))
+                svg(svg::Handle::from_memory(assets::PLUG_ZAP_ICON))
                     .width(25)
                     .height(25),
             )

@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide terminal on Windows
 mod app;
+mod assets;
 mod collectors;
 mod utils;
 
@@ -59,11 +60,6 @@ async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
 }
 
 fn main() -> iced::Result {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let _ = std::env::set_current_dir(exe_dir);
-        }
-    }
     match is_service_installed() {
         Ok(true) => {
             println!("{}", "✓ Service is ready".green());

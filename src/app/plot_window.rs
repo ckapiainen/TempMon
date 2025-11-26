@@ -131,15 +131,15 @@ impl PlotWindow {
          --- SIDEBAR CONTENT ---
         */
 
-        let toggle_icon_path = if is_collapsed {
-            "assets/icons/arrow-bar-to-right.svg" // Expand
+        let toggle_icon = if is_collapsed {
+            crate::assets::ARROW_RIGHT_ICON // Expand
         } else {
-            "assets/icons/arrow-bar-to-left.svg" // Collapse
+            crate::assets::ARROW_LEFT_ICON // Collapse
         };
 
         let toggle_btn = button(
             container(
-                svg(svg::Handle::from_path(toggle_icon_path))
+                svg(svg::Handle::from_memory(toggle_icon))
                     .width(30)
                     .height(30),
             )

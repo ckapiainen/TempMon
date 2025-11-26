@@ -42,14 +42,6 @@ icons = ["assets/logo.ico"]
 # bundled dependencies
 resources = [
     "assets/logo.ico",
-    "assets/icons/arrow-bar-to-left.svg",
-    "assets/icons/arrow-bar-to-right.svg",
-    "assets/icons/chart-spline.svg",
-    "assets/icons/cpu.svg",
-    "assets/icons/menu.svg",
-    "assets/icons/microchip.svg",
-    "assets/icons/plug-zap.svg",
-    "assets/icons/settings.svg",
     "bundle/PawnIO_setup.exe",
     "bundle/lhm-service.exe",
     "bundle/lhm-bridge.dll",
