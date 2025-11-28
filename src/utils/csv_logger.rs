@@ -23,7 +23,7 @@ pub struct CsvLogger {
     pub runtime_start: SystemTime,
     write_buffer_size: usize,
     pub write_buffer: Vec<CsvCpuLogEntry>,
-    pub graph_data_buffer: Vec<CsvCpuLogEntry>, // TODO: For upcoming line graph. THIS IS HERE FOR NOW
+    pub graph_data_buffer: Vec<CsvCpuLogEntry>,
 }
 
 impl CsvLogger {
@@ -53,7 +53,7 @@ impl CsvLogger {
             path,
             timestamp: Local::now(),
             runtime_start: SystemTime::now(),
-            write_buffer_size: 1, // TODO: Change back to 50 in prod. Make it configurable?
+            write_buffer_size: 50, // TODO: Change back to 50 in prod. Make it configurable?
             write_buffer: vec![],
             graph_data_buffer: vec![],
         })

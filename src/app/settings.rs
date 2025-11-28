@@ -1,13 +1,13 @@
 use crate::app::modal::modal;
+use crate::app::service::{get_service_state, ServiceState};
 use crate::app::styles;
 use crate::AppMessage;
 use anyhow::{Context, Result};
 use iced::widget::{
     button, checkbox, column, container, pick_list, row, rule, scrollable, slider, text, text_input,
 };
-use iced::{Alignment, Color, Element, Length, Theme};
+use iced::{Alignment, Background, Color, Element, Length, Theme};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::{fmt, fs};
 
 // Saved to disk
@@ -25,6 +25,8 @@ struct Config {
 // Runtime settings
 #[derive(Clone)]
 pub struct Settings {
+    pawnio_status: ServiceState,
+    lhm_service_status: ServiceState,
     pub theme: Theme,
     pub start_with_windows: bool,
     pub start_minimized: bool,
@@ -65,6 +67,8 @@ impl TempUnits {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            pawnio_status: ServiceState::Unknown,
+            lhm_service_status: ServiceState::Unknown,
             theme: Theme::Dracula,
             start_with_windows: true,
             start_minimized: false,
@@ -95,6 +99,9 @@ impl Settings {
     }
 
     pub fn load() -> Result<Self> {
+        let pawnio = get_service_state("PawnIO").unwrap_or(ServiceState::Stopped);
+        let lhm_service =
+            get_service_state("LibreHardwareMonitorService").unwrap_or(ServiceState::Stopped);
         let path = Self::get_config_path();
 
         // Create config directory if needed
@@ -119,6 +126,8 @@ impl Settings {
 
         // Thresholds are stored in the selected unit, use them as-is for display
         Ok(Self {
+            pawnio_status: pawnio,
+            lhm_service_status: lhm_service,
             theme,
             start_minimized: config.start_minimized,
             start_with_windows: config.start_with_windows,
@@ -180,7 +189,75 @@ impl Settings {
         .padding([15, 20])
         .width(Length::Fill);
 
-        // ========== APPEARANCE SECTION ==========
+        /*
+        ========== SERVICE STATUS SECTION ==========
+        */
+
+        let service_status_section = {
+            // Helper to create status indicator
+            let create_status_indicator = |label: String, state: ServiceState| {
+                let (status_text, status_color) = match state {
+                    ServiceState::Running => ("Running", Color::from_rgb(0.3, 0.8, 0.3)),
+                    ServiceState::Stopped => ("Stopped", Color::from_rgb(0.9, 0.3, 0.3)),
+                    ServiceState::StartPending => ("Starting...", Color::from_rgb(0.9, 0.7, 0.2)),
+                    ServiceState::StopPending => ("Stopping...", Color::from_rgb(0.9, 0.7, 0.2)),
+                    ServiceState::Unknown => ("Unknown", Color::from_rgb(0.9, 0.3, 0.3)),
+                };
+
+                column![
+                    // Service name
+                    text(label).size(13).style(|_theme| text::Style {
+                        color: Some(Color::from_rgb(0.75, 0.75, 0.75))
+                    }),
+                    // Status row
+                    row![
+                        // Status dot
+                        text("●").size(14).style(move |_theme| text::Style {
+                            color: Some(status_color)
+                        }),
+                        // Status text
+                        text(status_text).size(12).style(move |_theme| text::Style {
+                            color: Some(status_color)
+                        })
+                    ]
+                    .spacing(6)
+                    .align_y(Alignment::Center)
+                ]
+                .spacing(4)
+                .width(Length::Fill)
+            };
+
+            column![
+                text("SERVICES").size(14).style(|_theme| text::Style {
+                    color: Some(Color::from_rgb(0.6, 0.6, 0.6))
+                }),
+                container(
+                    row![
+                        create_status_indicator("PawnIO Driver".to_string(), self.pawnio_status),
+                        create_status_indicator(
+                            "LibreHardwareMonitor service".to_string(),
+                            self.lhm_service_status
+                        ),
+                    ]
+                    .spacing(12)
+                )
+                .padding(10)
+                .style(|_theme| container::Style {
+                    background: Some(Background::Color(Color::from_rgba(0.15, 0.15, 0.16, 0.5))),
+                    border: iced::Border {
+                        color: Color::from_rgba(0.3, 0.3, 0.35, 0.3),
+                        width: 1.0,
+                        radius: iced::border::Radius::from(10.0),
+                    },
+                    ..Default::default()
+                }),
+            ]
+            .spacing(8)
+        };
+
+        /*
+        ========== APPEARANCE SECTION ==========
+        */
         let appearance_section = iced::widget::column![
             text("APPEARANCE").size(14).style(|_theme| text::Style {
                 color: Some(Color::from_rgb(0.6, 0.6, 0.6))
@@ -243,7 +320,10 @@ impl Settings {
         ]
         .spacing(8);
 
-        // ========== TEMPERATURE SECTION ==========
+        /*
+        ========== TEMPERATURE SECTION ==========
+        */
+
         let unit = self.selected_temp_units.map(|u| match u {
             TempUnits::Celsius => "°C",
             TempUnits::Fahrenheit => "°F",
@@ -334,6 +414,13 @@ impl Settings {
                 scrollable(
                     container(
                         column![
+                            service_status_section,
+                            rule::horizontal(1).style(move |_theme| rule::Style {
+                                color: separator_color,
+                                snap: false,
+                                fill_mode: rule::FillMode::Full,
+                                radius: 0.0.into(),
+                            }),
                             appearance_section,
                             rule::horizontal(1).style(move |_theme| rule::Style {
                                 color: separator_color,

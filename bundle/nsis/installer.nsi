@@ -44,7 +44,7 @@ Section "MainSection" SEC01
 
     ; Create subdirectories
     CreateDirectory "$INSTDIR\assets"
-    CreateDirectory "$INSTDIR\bundle"
+    CreateDirectory "$INSTDIR\bin"
 
     ; Copy all resources to root first
     {{#each resources}}
@@ -53,9 +53,9 @@ Section "MainSection" SEC01
 
     ; Move files to correct subdirectories
     Rename "$INSTDIR\logo.ico" "$INSTDIR\assets\logo.ico"
-    Rename "$INSTDIR\PawnIO_setup.exe" "$INSTDIR\bundle\PawnIO_setup.exe"
-    Rename "$INSTDIR\lhm-service.exe" "$INSTDIR\bundle\lhm-service.exe"
-    Rename "$INSTDIR\lhm-bridge.dll" "$INSTDIR\bundle\lhm-bridge.dll"
+    Rename "$INSTDIR\PawnIO_setup.exe" "$INSTDIR\bin\PawnIO_setup.exe"
+    Rename "$INSTDIR\lhm-service.exe" "$INSTDIR\bin\lhm-service.exe"
+    Rename "$INSTDIR\lhm-bridge.dll" "$INSTDIR\bin\lhm-bridge.dll"
 
     SetOutPath "$INSTDIR"
 
@@ -72,7 +72,7 @@ Section "MainSection" SEC01
             DetailPrint "Please wait (this may take 30-60 seconds)..."
 
             ; Use -silent -install flags for fully automated installation
-            ExecWait '"$INSTDIR\bundle\PawnIO_setup.exe" -silent -install' $1
+            ExecWait '"$INSTDIR\bin\PawnIO_setup.exe" -silent -install' $1
 
             ; Enhanced error handling
             ${If} $1 == 0
@@ -114,7 +114,7 @@ Section "MainSection" SEC01
     ${If} $0 != 0
         DetailPrint "LHM service not found, installing..."
         ; Create service with sc create
-        ExecWait 'sc create LibreHardwareMonitorService binPath= "$INSTDIR\bundle\lhm-service.exe" start= auto DisplayName= "LibreHardwareMonitor Service" type= own' $0
+        ExecWait 'sc create LibreHardwareMonitorService binPath= "$INSTDIR\bin\lhm-service.exe" start= auto DisplayName= "LibreHardwareMonitor Service" type= own' $0
         ${If} $0 == 0
             DetailPrint "Service created successfully"
             ; Start the service

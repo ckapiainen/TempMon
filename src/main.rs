@@ -60,13 +60,6 @@ async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
 }
 
 fn main() -> iced::Result {
-    match get_service_state("PawnIO") {
-        Ok(ServiceState::Running) => println!("{}", "✓ PawnIO is installed and running".green()),
-        Ok(ServiceState::Stopped) => println!("✗ PawnIO is stopped"),
-        Ok(state) => println!("PawnIO state: {:?}", state),
-        Err(e) => eprintln!("Error: {}", e),
-    }
-
     match is_service_installed() {
         Ok(true) => {
             println!("{}", "✓ Service is ready".green());
