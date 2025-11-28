@@ -1,6 +1,6 @@
 [package]
 name = "temp-monitor"
-version = "0.8.5"
+version = "0.8.6"
 repository = "https://github.com/ckapiainen/temp-monitor"
 authors = ["ckapiainen"]
 edition = "2021"
@@ -11,7 +11,7 @@ iced = { git = "https://github.com/iced-rs/iced", rev = "bfc27e4", features = ["
 iced_plot = { git = "https://github.com/ckapiainen/iced_plot", branch = "font-edit-and-line-width" }
 
 anyhow = "1.0.100"
-tokio = { version = "=1.45.1", features = ["rt", "time", "fs", "macros"] }
+tokio = { version = "=1.45.1", features = ["rt", "time", "fs", "macros", "process"] }
 colored = "3.0.0"
 tray-icon = "0.14.3"
 image = { version = "0.25", features = ["jpeg", "png"] }

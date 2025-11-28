@@ -6,6 +6,7 @@ mod utils;
 
 use app::plot_window;
 use app::plot_window::PlotWindowMessage;
+use app::service::{get_service_state, ServiceState};
 use app::settings::Settings;
 use app::{layout, main_window};
 use collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
@@ -23,7 +24,6 @@ use tray_icon::{
     Icon, TrayIconBuilder,
 };
 use utils::csv_logger::{CsvCpuLogEntry, CsvLogger};
-
 async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
     match LHMClient::connect().await {
         Ok(client) => {
@@ -60,6 +60,13 @@ async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
 }
 
 fn main() -> iced::Result {
+    match get_service_state("PawnIO") {
+        Ok(ServiceState::Running) => println!("{}", "✓ PawnIO is installed and running".green()),
+        Ok(ServiceState::Stopped) => println!("✗ PawnIO is stopped"),
+        Ok(state) => println!("PawnIO state: {:?}", state),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+
     match is_service_installed() {
         Ok(true) => {
             println!("{}", "✓ Service is ready".green());

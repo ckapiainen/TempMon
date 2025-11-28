@@ -4435,7 +4435,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "temp-monitor"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4600,6 +4600,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.52.0",
