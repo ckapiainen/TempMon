@@ -156,8 +156,8 @@ impl PowerAndUsageGraph {
             // Add power series (orange/yellow color)
             let power = Series::new(
                 power_series,
-                MarkerStyle::circle(3.0),
-                LineStyle::Solid { width: 7.0 },
+                MarkerStyle::circle(4.0),
+                LineStyle::Solid { width: 4.0 },
             )
             .with_label("CPU Power (W)")
             .with_color(Color::from_rgb(1.0, 0.6, 0.0)); // Orange
@@ -165,8 +165,8 @@ impl PowerAndUsageGraph {
             // Add usage series (blue/cyan color)
             let usage = Series::new(
                 usage_series,
-                MarkerStyle::circle(3.0),
-                LineStyle::Solid { width: 7.0 },
+                MarkerStyle::circle(4.0),
+                LineStyle::Solid { width: 4.0 },
             )
             .with_label("CPU Usage (%)")
             .with_color(Color::from_rgb(0.2, 0.6, 1.0)); // Blue

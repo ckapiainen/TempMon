@@ -144,9 +144,9 @@ impl MainWindow {
                 text("LOAD").size(20),
                 text(format!("{:.2}%", cpu_data.usage)).size(55),
                 row![
-                    text(format!("L: {:.2}%", cpu_data.usage_low)).size(20),
+                    text(format!("L: {:.2}%", cpu_data.usage_min)).size(20),
                     text(" | ").size(20),
-                    text(format!("H: {:.2}%", cpu_data.usage_high)).size(20),
+                    text(format!("H: {:.2}%", cpu_data.usage_max)).size(20),
                 ]
                 .spacing(5)
             ]
@@ -170,9 +170,9 @@ impl MainWindow {
                 ]
                 .on_link_click(never),
                 row![
-                    text(format!("L: {:.2}°C", cpu_data.temp_low)).size(20),
+                    text(format!("L: {:.2}°C", cpu_data.temp_min)).size(20),
                     text(" | ").size(20),
-                    text(format!("H: {:.2}°C", cpu_data.temp_high)).size(20),
+                    text(format!("H: {:.2}°C", cpu_data.temp_max)).size(20),
                 ]
                 .spacing(5)
             ]

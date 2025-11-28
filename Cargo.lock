@@ -2046,7 +2046,7 @@ dependencies = [
 [[package]]
 name = "iced_plot"
 version = "0.1.0"
-source = "git+https://github.com/ckapiainen/iced_plot?branch=font-edit-and-line-width#3d3e51c5efda2d1094cb2e3d3e1cbbff45094dbc"
+source = "git+https://github.com/ckapiainen/iced_plot?branch=font-edit-and-line-width#21066f30fcde8cb1bf29bb3452acc0b158cdccfe"
 dependencies = [
  "bytemuck",
  "glam 0.30.9",
@@ -4435,7 +4435,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "temp-monitor"
-version = "0.8.0"
+version = "0.8.5"
 dependencies = [
  "anyhow",
  "chrono",

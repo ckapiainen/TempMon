@@ -111,7 +111,14 @@ mod tests {
             logger.write(entry).unwrap();
         }
 
+        // Graph data buffer should have all 5 entries
         assert_eq!(logger.graph_data_buffer.len(), 5);
-        assert_eq!(logger.write_buffer.len(), 5);
+
+        // Write buffer should be empty because write_buffer_size=1 causes auto-flush after each write
+        assert_eq!(logger.write_buffer.len(), 0);
+
+        // Verify the data was written to the file
+        let read_entries = logger.read().unwrap();
+        assert_eq!(read_entries.len(), 5);
     }
 }

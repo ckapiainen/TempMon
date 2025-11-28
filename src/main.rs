@@ -4,14 +4,13 @@ mod assets;
 mod collectors;
 mod utils;
 
-use crate::app::plot_window;
-use crate::collectors::cpu_collector::CpuData;
-use crate::collectors::lhm_collector::lhm_cpu_queries;
-use crate::collectors::CoreStats;
-use crate::utils::csv_logger::{CsvCpuLogEntry, CsvLogger};
+use app::plot_window;
 use app::plot_window::PlotWindowMessage;
 use app::settings::Settings;
 use app::{layout, main_window};
+use collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
+use collectors::{cpu_collector::CpuData, gpu_collector::GpuData};
+use collectors::{CpuCoreLHMQuery, GpuLHMQuery};
 use colored::Colorize;
 use iced::widget::container;
 use iced::{window, Element, Subscription, Task, Theme};
@@ -23,6 +22,7 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem},
     Icon, TrayIconBuilder,
 };
+use utils::csv_logger::{CsvCpuLogEntry, CsvLogger};
 
 async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
     match LHMClient::connect().await {
@@ -32,7 +32,7 @@ async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
                 .set_options(ComputerOptions {
                     controller_enabled: false,
                     cpu_enabled: true,
-                    gpu_enabled: false,
+                    gpu_enabled: true,
                     motherboard_enabled: false,
                     battery_enabled: false,
                     memory_enabled: false,
@@ -109,10 +109,11 @@ enum AppMessage {
     MainButtonPressed,
     PlotterButtonPressed,
     UpdateHardwareData,
-    CpuValuesUpdated((f32, f32, Vec<CoreStats>)),
+    CpuValuesUpdated((f32, f32, Vec<CpuCoreLHMQuery>)),
+    GpuValuesUpdated(Vec<GpuLHMQuery>),
     MainWindow(main_window::MainWindowMessage),
     PlotWindow(PlotWindowMessage),
-    HardwareMonitorConnected(Option<lhm_client::LHMClientHandle>),
+    HardwareMonitorConnected(Option<lhm_client::LHMClientHandle>, Vec<GpuData>),
 }
 #[derive(Clone, Debug)]
 enum Screen {
@@ -124,6 +125,7 @@ struct App {
     window_id: Option<window::Id>,
     hw_monitor_service: Option<lhm_client::LHMClientHandle>,
     cpu_data: CpuData,
+    gpu_data: Vec<GpuData>,
     system: System,
     current_screen: Screen,
     show_settings_modal: bool,
@@ -140,7 +142,7 @@ struct App {
 
 impl App {
     /// Update tray tooltip with live hw data
-    // Temperature thresholds for icon color changes are configurable in settings
+    // TODO: Temperature thresholds for icon color changes are configurable in settings
     fn update_tray_tooltip(&self) {
         let mut tooltip = format!(
             "CPU: {:.0}°C ({:.0}%)\nPower: {:.1}W",
@@ -217,7 +219,16 @@ impl App {
 
         // Create task to connect to hardware monitor
         let connect_task = Task::future(async {
-            AppMessage::HardwareMonitorConnected(connect_to_lhwm_service().await)
+            let client = connect_to_lhwm_service().await;
+
+            // Initialize GPUs if connection succeeded
+            let gpu_list = if let Some(ref c) = client {
+                initialize_gpus(c).await
+            } else {
+                Vec::new()
+            };
+
+            AppMessage::HardwareMonitorConnected(client, gpu_list)
         });
 
         (
@@ -225,6 +236,7 @@ impl App {
                 window_id: None,
                 hw_monitor_service,
                 cpu_data,
+                gpu_data: Vec::new(),
                 system,
                 current_screen: Screen::Main,
                 show_settings_modal: false,
@@ -252,10 +264,20 @@ impl App {
 
     fn update(&mut self, message: AppMessage) -> Task<AppMessage> {
         match message {
-            AppMessage::HardwareMonitorConnected(client) => {
+            AppMessage::HardwareMonitorConnected(client, gpu_list) => {
                 self.hw_monitor_service = client;
+                self.gpu_data = gpu_list;
+
                 if self.hw_monitor_service.is_some() {
                     println!("{}", "✓ Connected to hardware monitor".green());
+
+                    if !self.gpu_data.is_empty() {
+                        println!("✓ Initialized {} GPU(s)", self.gpu_data.len());
+                        for (i, gpu) in self.gpu_data.iter().enumerate() {
+                            println!("  GPU {}: {} ({:?})", i, gpu.name, gpu.brand);
+                        }
+                    }
+
                     // Trigger initial update after service connects
                     Task::done(AppMessage::UpdateHardwareData)
                 } else {
@@ -397,13 +419,32 @@ impl App {
                 self.cpu_data.update(&mut self.system);
 
                 if let Some(client) = &self.hw_monitor_service {
-                    let client = client.clone();
-                    Task::future(async move {
-                        // NOTE TO SELF: Task::future always needs to return message
-                        client.update_all().await.expect("Error updating hardware");
-                        let temps = lhm_cpu_queries(&client).await;
-                        AppMessage::CpuValuesUpdated(temps)
-                    })
+                    let client_cpu = client.clone();
+                    let client_gpu = client.clone();
+                    let gpu_brands: Vec<_> = self.gpu_data.iter().map(|gpu| gpu.brand).collect();
+
+                    Task::batch(vec![
+                        // Query CPU data
+                        Task::future(async move {
+                            client_cpu
+                                .update_all()
+                                .await
+                                .expect("Error updating hardware");
+                            let temps = lhm_cpu_queries(&client_cpu).await;
+                            AppMessage::CpuValuesUpdated(temps)
+                        }),
+                        // Query GPU data
+                        Task::future(async move {
+                            let mut gpu_queries = Vec::new();
+
+                            for brand in gpu_brands {
+                                let query = lhm_gpu_queries(brand, &client_gpu).await;
+                                gpu_queries.push(query);
+                            }
+
+                            AppMessage::GpuValuesUpdated(gpu_queries)
+                        }),
+                    ])
                 } else {
                     Task::none()
                 }
@@ -446,6 +487,15 @@ impl App {
                         .selected_temp_units
                         .unwrap_or(app::settings::TempUnits::Celsius),
                 );
+                Task::none()
+            }
+            AppMessage::GpuValuesUpdated(gpu_queries) => {
+                // Update each GPU with its corresponding query data
+                for (i, query) in gpu_queries.into_iter().enumerate() {
+                    if let Some(gpu) = self.gpu_data.get_mut(i) {
+                        gpu.update_lhm_data(query);
+                    }
+                }
                 Task::none()
             }
         }

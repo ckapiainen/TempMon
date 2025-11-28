@@ -141,7 +141,7 @@ impl CsvLogger {
 
         let mut wtr = WriterBuilder::new()
             .delimiter(b';')
-            .has_headers(!file_exists)
+            .has_headers(false)
             .from_writer(file);
 
         // Write headers if new file

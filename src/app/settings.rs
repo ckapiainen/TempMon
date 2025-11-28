@@ -79,7 +79,7 @@ impl Default for Settings {
     }
 }
 
-// TODO: MORE settings
+// TODO: MORE settings. Add check to see if PawnIO and lhmservice are installed and running
 // Tray icon:
 // "Show temperature" checkbox
 // "Show CPU usage" checkbox
@@ -154,8 +154,7 @@ impl Settings {
         };
 
         let toml = toml::to_string_pretty(&config).context("Failed to serialize config")?;
-        fs::write(&path, toml)
-            .with_context(|| format!("Failed to write config to {:?}", path))?;
+        fs::write(&path, toml).with_context(|| format!("Failed to write config to {:?}", path))?;
         dbg!("Saved config to disk");
         Ok(())
     }
@@ -234,7 +233,7 @@ impl Settings {
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
-                text("How often to refresh hardware data")
+                text("How often to refresh hardware and line graph data.")
                     .size(12)
                     .style(|_theme| text::Style {
                         color: Some(Color::from_rgb(0.6, 0.6, 0.6))

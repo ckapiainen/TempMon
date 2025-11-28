@@ -1,23 +1,24 @@
-use super::CoreStats;
+use super::CpuCoreLHMQuery;
 use crate::collectors::cpu_frequency_collector::FrequencyMonitor;
 use sysinfo::System;
 
+//TODO: max vec size for averages
 pub struct CpuData {
-    initial_run: bool,
+    first_run: bool,
     pub name: String,
     pub core_count: u32,
     pub base_cpu_frequency: f64,
     pub temp: f32,
-    pub temp_low: f32,
-    pub temp_high: f32,
-    pub temp_avg: f32,
+    pub temp_min: f32,
+    pub temp_max: f32,
+    pub temp_avg: Vec<f32>,
     pub usage: f32,
-    pub usage_low: f32,
-    pub usage_high: f32,
-    pub usage_avg: f32,
-    pub core_utilization: Vec<CoreStats>,
+    pub usage_min: f32,
+    pub usage_max: f32,
+    pub usage_avg: Vec<f32>,
+    pub core_utilization: Vec<CpuCoreLHMQuery>,
     pub total_power_draw: f32,
-    pub core_power_draw: Vec<CoreStats>,
+    pub core_power_draw: Vec<CpuCoreLHMQuery>,
     frequency_monitor: Option<FrequencyMonitor>,
     pub current_frequency: f64,
 }
@@ -27,17 +28,17 @@ impl CpuData {
         let base_freq = sys.cpus()[0].frequency() as f64 / 1000.0;
         let frequency_monitor = FrequencyMonitor::new(base_freq).ok(); // If it fails just use base frequency
 
-        let cores: Vec<CoreStats> = sys
+        let cores: Vec<CpuCoreLHMQuery> = sys
             .cpus()
             .iter()
-            .map(|cpu| CoreStats {
+            .map(|cpu| CpuCoreLHMQuery {
                 name: cpu.name().to_string(),
                 value: cpu.cpu_usage(),
             })
             .collect();
 
         Self {
-            initial_run: true,
+            first_run: true,
             name: sys.cpus()[0]
                 .brand()
                 .trim()
@@ -46,36 +47,33 @@ impl CpuData {
             core_count: sys.cpus().len() as u32,
             base_cpu_frequency: base_freq,
             temp: 0.0,
-            temp_low: 0.0,
-            temp_high: 0.0,
+            temp_min: 0.0,
+            temp_max: 0.0,
             total_power_draw: 0.0,
             core_power_draw: Vec::new(),
             usage: sys.global_cpu_usage(),
-            usage_low: sys.global_cpu_usage(),
-            usage_high: sys.global_cpu_usage(),
-            usage_avg: 0.0,
+            usage_min: sys.global_cpu_usage(),
+            usage_max: sys.global_cpu_usage(),
+            usage_avg: Vec::new(),
             core_utilization: cores,
             frequency_monitor,
             current_frequency: base_freq,
-            temp_avg: 0.0,
+            temp_avg: Vec::new(),
         }
     }
 
     // lhm service updates
-    pub fn update_lhm_data(&mut self, temps: (f32, f32, Vec<CoreStats>)) {
-        if self.initial_run {
-            self.initial_run = false;
-            self.temp_low = temps.0;
+    pub fn update_lhm_data(&mut self, temps: (f32, f32, Vec<CpuCoreLHMQuery>)) {
+        if self.first_run {
+            self.first_run = false;
+            self.temp_min = temps.0;
         }
         self.temp = temps.0;
         self.total_power_draw = temps.1;
         self.core_power_draw = temps.2;
-        if self.temp < self.temp_low {
-            self.temp_low = self.temp;
-        }
-        if self.temp > self.temp_high {
-            self.temp_high = self.temp;
-        }
+        self.temp_max = self.temp_max.max(self.temp);
+        self.temp_min = self.temp_min.min(self.temp);
+        self.temp_avg.push(self.temp);
     }
 
     // Method to update sysinfo and win32 api data
@@ -83,12 +81,9 @@ impl CpuData {
         sys.refresh_cpu_all();
         let usage_update = sys.global_cpu_usage();
         self.usage = usage_update;
-        if usage_update < self.usage_low {
-            self.usage_low = usage_update;
-        }
-        if usage_update > self.usage_high {
-            self.usage_high = usage_update;
-        }
+        self.usage_avg.push(usage_update);
+        self.usage_max = self.usage_max.max(usage_update);
+        self.usage_min = self.usage_min.min(usage_update);
 
         for (i, cpu) in sys.cpus().iter().enumerate() {
             if let Some(core_data) = self.core_utilization.get_mut(i) {

@@ -33,6 +33,8 @@ pub enum PlotWindowMessage {
     RemoveProcess(String),
 }
 
+// TODO: Fix unit conversion in bot graphs. Process monitor..
+
 impl PlotWindow {
     pub fn new(temp_units_from_settings: String) -> Self {
         let units = if temp_units_from_settings == "Celsius" {

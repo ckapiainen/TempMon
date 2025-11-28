@@ -157,8 +157,8 @@ impl TemperatureGraph {
 
             let temp_series = Series::new(
                 cpu_temp_series,
-                MarkerStyle::circle(3.0),
-                LineStyle::Solid { width: 7.0 },
+                MarkerStyle::circle(5.0),
+                LineStyle::Solid { width: 4.0 },
             )
             .with_label("CPU Temperature")
             .with_color(Color::from_rgb(1.0, 0.2, 0.2));
