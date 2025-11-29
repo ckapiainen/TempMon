@@ -1,7 +1,6 @@
 use crate::collectors::GpuLHMQuery;
 use lhm_client::HardwareType;
 
-//TODO: max vec size for averages
 #[derive(Debug, Clone)]
 pub struct GpuData {
     first_run: bool,
@@ -71,6 +70,14 @@ impl GpuData {
         self.core_temp_avg.push(self.core_temp);
         self.memory_junction_temp_avg
             .push(self.memory_junction_temp);
+
+        // Avg max vec len 30
+        if self.core_temp_avg.len() > 30 {
+            self.core_temp_avg.remove(0);
+        }
+        if self.memory_junction_temp_avg.len() > 30 {
+            self.memory_junction_temp_avg.remove(0);
+        }
     }
     pub fn get_core_temp_avg(&self) -> f32 {
         let avg = self.core_temp_avg.iter().sum::<f32>() / self.core_temp_avg.len() as f32;

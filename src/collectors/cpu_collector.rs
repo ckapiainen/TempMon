@@ -74,6 +74,9 @@ impl CpuData {
         self.temp_max = self.temp_max.max(self.temp);
         self.temp_min = self.temp_min.min(self.temp);
         self.temp_avg.push(self.temp);
+        if self.temp_avg.len() > 30 {
+            self.temp_avg.remove(0);
+        }
     }
 
     // Method to update sysinfo and win32 api data
@@ -84,6 +87,9 @@ impl CpuData {
         self.usage_avg.push(usage_update);
         self.usage_max = self.usage_max.max(usage_update);
         self.usage_min = self.usage_min.min(usage_update);
+        if self.usage_avg.len() > 30 {
+            self.usage_avg.remove(0);
+        }
 
         for (i, cpu) in sys.cpus().iter().enumerate() {
             if let Some(core_data) = self.core_utilization.get_mut(i) {
@@ -95,5 +101,21 @@ impl CpuData {
                 self.current_frequency = freq;
             }
         }
+    }
+
+    pub fn get_temp_avg(&self) -> f32 {
+        if self.temp_avg.is_empty() {
+            return self.temp;
+        }
+        let avg = self.temp_avg.iter().sum::<f32>() / self.temp_avg.len() as f32;
+        (avg * 10.0).round() / 10.0 // Round to 1 decimal place
+    }
+
+    pub fn get_usage_avg(&self) -> f32 {
+        if self.usage_avg.is_empty() {
+            return self.usage;
+        }
+        let avg = self.usage_avg.iter().sum::<f32>() / self.usage_avg.len() as f32;
+        (avg * 100.0).round() / 100.0 // Round to 2 decimal places
     }
 }

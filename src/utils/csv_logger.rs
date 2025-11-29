@@ -59,10 +59,10 @@ impl CsvLogger {
         })
     }
 
-    pub fn update_path(&mut self, new_path: PathBuf) {
-        self.path = new_path;
-        self.wtr = Self::open_csv_writer(&self.path).unwrap();
-    }
+    // pub fn update_path(&mut self, new_path: PathBuf) {
+    //     self.path = new_path;
+    //     self.wtr = Self::open_csv_writer(&self.path).unwrap();
+    // }
     pub fn read(&self) -> Result<Vec<CsvCpuLogEntry>> {
         let mut rdr = csv::ReaderBuilder::new()
             .delimiter(b';')

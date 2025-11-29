@@ -6,7 +6,6 @@ mod utils;
 
 use app::plot_window;
 use app::plot_window::PlotWindowMessage;
-use app::service::{get_service_state, ServiceState};
 use app::settings::Settings;
 use app::{layout, main_window};
 use collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};

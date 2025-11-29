@@ -1,6 +1,6 @@
 [package]
 name = "temp-monitor"
-version = "0.8.6"
+version = "0.9.0"
 repository = "https://github.com/ckapiainen/temp-monitor"
 authors = ["ckapiainen"]
 edition = "2021"

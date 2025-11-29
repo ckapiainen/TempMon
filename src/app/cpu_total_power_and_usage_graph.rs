@@ -76,7 +76,7 @@ impl PowerAndUsageGraph {
         }
     }
 
-    pub fn view(&self) -> Element<PlotUiMessage> {
+    pub fn view(&self) -> Element<'_, PlotUiMessage> {
         self.widget.view()
     }
 
