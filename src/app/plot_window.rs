@@ -130,7 +130,7 @@ impl PlotWindow {
         let is_collapsed = self.sidebar_expanded.value < 0.5;
 
         /*
-         --- SIDEBAR CONTENT ---
+         ========== SIDEBAR CONTENT ==========
         */
 
         let toggle_icon = if is_collapsed {
@@ -258,7 +258,7 @@ impl PlotWindow {
         .width(Length::FillPortion(3));
 
         /*
-          --- GPU GRAPHS ---
+          ========== GPU GRAPHS ==========
         */
         let gpu_placeholder = container(
             column![
@@ -277,7 +277,7 @@ impl PlotWindow {
         .style(styles::card_container_style);
 
         /*
-        --- MAIN LAYOUT ---
+        ========== MAIN LAYOUT ==========
         */
         let content = row![
             left_sidebar,

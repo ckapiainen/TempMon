@@ -1,4 +1,5 @@
 pub const CPU_ICON: &[u8] = include_bytes!("../assets/icons/cpu.svg");
+pub const GPU_ICON: &[u8] = include_bytes!("../assets/icons/gpu.svg");
 pub const MICROCHIP_ICON: &[u8] = include_bytes!("../assets/icons/microchip.svg");
 pub const MENU_ICON: &[u8] = include_bytes!("../assets/icons/menu.svg");
 pub const CHART_SPLINE_ICON: &[u8] = include_bytes!("../assets/icons/chart-spline.svg");

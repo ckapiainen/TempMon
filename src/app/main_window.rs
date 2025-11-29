@@ -1,6 +1,7 @@
 use crate::app::styles;
 use crate::assets;
 use crate::collectors::cpu_collector::CpuData;
+use crate::collectors::GpuData;
 use iced::widget::{
     button, column, container, progress_bar, rich_text, row, rule, span, svg, text, Row,
 };
@@ -25,26 +26,30 @@ pub enum MainWindowMessage {
     UsageButtonPressed,
     PowerButtonPressed,
     // Animation triggers
-    ToggleGeneralInfo,
+    ToggleCpuCard,
     ToggleCoresCard,
+    ToggleGpuCard,
     Tick, // Frame update (REQUIRED for animations)
 }
 
 pub struct MainWindow {
     bar_chart_state: BarChartState,
-    general_info_expanded: Animated<f32, Instant>,
+    cpu_card_expanded: Animated<f32, Instant>,
     cores_card_expanded: Animated<f32, Instant>,
+    gpu_card_expanded: Animated<f32, Instant>,
     now: Instant,
 }
 
 //TODO: Responsive layout: max size for cards and move them according to screen size (switch between column/row or some better way with iced api)
-// TODO: 5 sec timeout before setting min/max values. 100% max value clips with box next to it
+//TODO: Tiling window management for cards? https://docs.iced.rs/iced_widget/pane_grid/struct.PaneGrid.html
+// TODO: 1: 5 sec timeout before setting min/max values. 2: 100% max value clips with box next to it
 impl MainWindow {
     pub fn new() -> Self {
         Self {
             bar_chart_state: BarChartState::Usage,
-            general_info_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
+            cpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             cores_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
+            gpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             now: Instant::now(),
         }
     }
@@ -57,16 +62,15 @@ impl MainWindow {
             MainWindowMessage::PowerButtonPressed => {
                 self.bar_chart_state = BarChartState::Power;
             }
-            MainWindowMessage::ToggleGeneralInfo => {
+            MainWindowMessage::ToggleCpuCard => {
                 // 0.0 Collapsed, 1.0 Expanded
-                let new_value = if self.general_info_expanded.value > 0.5 {
+                let new_value = if self.cpu_card_expanded.value > 0.5 {
                     0.0
                 } else {
                     1.0
                 };
                 // Start the transition
-                self.general_info_expanded
-                    .transition(new_value, Instant::now());
+                self.cpu_card_expanded.transition(new_value, Instant::now());
             }
             MainWindowMessage::ToggleCoresCard => {
                 let new_value = if self.cores_card_expanded.value > 0.5 {
@@ -77,6 +81,14 @@ impl MainWindow {
                 self.cores_card_expanded
                     .transition(new_value, Instant::now());
             }
+            MainWindowMessage::ToggleGpuCard => {
+                let new_value = if self.gpu_card_expanded.value > 0.5 {
+                    0.0
+                } else {
+                    1.0
+                };
+                self.gpu_card_expanded.transition(new_value, Instant::now());
+            }
             MainWindowMessage::Tick => {
                 // Update current time on each frame
                 self.now = Instant::now();
@@ -86,7 +98,7 @@ impl MainWindow {
 
     pub fn subscription(&self) -> Subscription<MainWindowMessage> {
         // Only subscribe to frames when animations are active
-        if self.general_info_expanded.in_progress(self.now)
+        if self.cpu_card_expanded.in_progress(self.now)
             || self.cores_card_expanded.in_progress(self.now)
         {
             window::frames().map(|_| MainWindowMessage::Tick)
@@ -95,7 +107,11 @@ impl MainWindow {
         }
     }
 
-    pub fn view<'a>(&self, cpu_data: &'a CpuData) -> Element<'a, MainWindowMessage> {
+    pub fn view<'a>(
+        &self,
+        cpu_data: &'a CpuData,
+        gpu_data: &'a Vec<GpuData>,
+    ) -> Element<'a, MainWindowMessage> {
         let core_usage_vector = &cpu_data.core_utilization;
         let core_power_draw_vector = &cpu_data.core_power_draw;
 
@@ -106,11 +122,11 @@ impl MainWindow {
         // Animate height between collapsed and expanded
         // 1.0 = expanded, 0.0 = collapsed
         let animation_factor = self
-            .general_info_expanded
+            .cpu_card_expanded
             .animate(std::convert::identity, self.now);
         let general_card_height = GENERAL_CARD_COLLAPSED_HEIGHT
             + (animation_factor * (GENERAL_CARD_EXPANDED_HEIGHT - GENERAL_CARD_COLLAPSED_HEIGHT));
-        let is_general_expanded = self.general_info_expanded.value > 0.5;
+        let is_cpu_card_expanded = self.cpu_card_expanded.value > 0.5;
 
         // Clickable header
         let general_header_button = button(
@@ -134,11 +150,11 @@ impl MainWindow {
                 left: 10.0,
             }),
         )
-        .on_press(MainWindowMessage::ToggleGeneralInfo)
+        .on_press(MainWindowMessage::ToggleCpuCard)
         .width(Fill)
         .style(styles::header_button_style);
 
-        let general_content = if is_general_expanded {
+        let general_content = if is_cpu_card_expanded {
             // Expanded view - show full stats
             let total_load = column![
                 text("LOAD").size(20),
@@ -419,7 +435,146 @@ impl MainWindow {
             .style(styles::card_container_style)
             .clip(true);
 
-        let all_cards = column![general_cpu_info_card, cores_card].spacing(20);
+        /*
+         =========== GPU info card ==========
+        */
+        let gpu_animation_factor = self
+            .gpu_card_expanded
+            .animate(std::convert::identity, self.now);
+        let gpu_card_height = GENERAL_CARD_COLLAPSED_HEIGHT
+            + (gpu_animation_factor
+                * (GENERAL_CARD_EXPANDED_HEIGHT - GENERAL_CARD_COLLAPSED_HEIGHT));
+        let is_gpu_card_expanded = self.gpu_card_expanded.value > 0.5;
+
+        // Clickable header
+        let gpu_header_button = button(
+            row![
+                svg(svg::Handle::from_memory(assets::GPU_ICON))
+                    .width(25)
+                    .height(25),
+                rich_text([span(&gpu_data[0].name).font(Font {
+                    weight: font::Weight::Bold,
+                    ..Font::default()
+                }),])
+                .on_link_click(never)
+                .size(17),
+            ]
+            .spacing(10)
+            .align_y(Center)
+            .padding(Padding {
+                top: 10.0,
+                right: 10.0,
+                bottom: 0.0,
+                left: 10.0,
+            }),
+        )
+        .on_press(MainWindowMessage::ToggleGpuCard)
+        .width(Fill)
+        .style(styles::header_button_style);
+
+        let gpu_card_content = if is_gpu_card_expanded {
+            // Expanded view - show full stats
+            let total_load = column![
+                text("LOAD").size(20),
+                text(format!("{:.2}%", &gpu_data[0].core_load)).size(55),
+                // row![
+                //     text(format!("L: {:.2}%", &gpu_data[0].usage_min)).size(20),
+                //     text(" | ").size(20),
+                //     text(format!("H: {:.2}%", &gpu_data[0].usage_max)).size(20),
+                // ]
+                // .spacing(5)
+            ]
+            .align_x(Center)
+            .width(195);
+
+            let gpu_temp = column![
+                text("TEMP").size(20),
+                rich_text![
+                    span(format!("{:.1}", gpu_data[0].core_temp)).size(55),
+                    span(" \u{00B0}").size(38).font(Font {
+                        weight: font::Weight::Light,
+                        ..Font::default()
+                    }),
+                    span("C")
+                        .font(Font {
+                            weight: font::Weight::Light,
+                            ..Font::default()
+                        })
+                        .size(35),
+                ]
+                .on_link_click(never),
+                row![
+                    text(format!("L: {:.2}°C", gpu_data[0].core_temp_min)).size(20),
+                    text(" | ").size(20),
+                    text(format!("H: {:.2}°C", gpu_data[0].core_temp_max)).size(20),
+                ]
+                .spacing(5)
+            ]
+            .align_x(Center)
+            .width(215);
+
+            let gpu_clock_speed = column![
+                text("GRAPHICS CLOCK SPEED").size(18),
+                text(format!("{:.0} MHz", gpu_data[0].core_clock)).size(38),
+                container(rule::horizontal(1)).padding(Padding {
+                    top: 8.0,
+                    right: 0.0,
+                    bottom: 8.0,
+                    left: 0.0,
+                }),
+                text("PACKAGE POWER").size(18),
+                text(format!("{:.1} W", gpu_data[0].power)).size(38)
+            ]
+            .align_x(Center)
+            .width(190);
+
+            let stats_row = row![
+                total_load,
+                rule::vertical(1),
+                gpu_temp,
+                rule::vertical(1),
+                gpu_clock_speed
+            ]
+            .spacing(25)
+            .align_y(Center)
+            .padding(Padding {
+                top: 0.0,
+                right: 0.0,
+                bottom: 10.0,
+                left: 0.0,
+            });
+
+            column![gpu_header_button, rule::horizontal(1), stats_row]
+                .align_x(Center)
+                .spacing(15)
+        } else {
+            // Collapsed view - show header with key metrics in one line
+            let collapsed_info = row![
+                text(format!("{}°C", gpu_data[0].core_temp as i32)).size(25),
+                text("|").size(25),
+                text(format!("{:.1}%", gpu_data[0].core_load)).size(25),
+            ]
+            .spacing(10)
+            .align_y(Center)
+            .padding(Padding {
+                top: 10.0,
+                right: 10.0,
+                bottom: 10.0,
+                left: 10.0,
+            });
+
+            column![row![gpu_header_button, collapsed_info,]
+                .width(Fill)
+                .align_y(Center)]
+        };
+        let gpu_card = container(gpu_card_content)
+            .width(Fill)
+            .height(gpu_card_height)
+            .align_x(Center)
+            .style(styles::card_container_style)
+            .clip(true);
+
+        let all_cards = column![general_cpu_info_card, cores_card, gpu_card].spacing(20);
         container(all_cards).padding(20).width(Fill).into()
     }
 }

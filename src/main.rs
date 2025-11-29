@@ -24,7 +24,7 @@ use tray_icon::{
     Icon, TrayIconBuilder,
 };
 use utils::csv_logger::{CsvCpuLogEntry, CsvLogger};
-async fn connect_to_lhwm_service() -> Option<lhm_client::LHMClientHandle> {
+async fn connect_to_lhm_service() -> Option<lhm_client::LHMClientHandle> {
     match LHMClient::connect().await {
         Ok(client) => {
             println!("Connected to hardware monitoring service");
@@ -219,7 +219,7 @@ impl App {
 
         // Create task to connect to hardware monitor
         let connect_task = Task::future(async {
-            let client = connect_to_lhwm_service().await;
+            let client = connect_to_lhm_service().await;
 
             // Initialize GPUs if connection succeeded
             let gpu_list = if let Some(ref c) = client {
@@ -508,7 +508,7 @@ impl App {
         let page = match self.current_screen {
             Screen::Main => self
                 .main_window
-                .view(&self.cpu_data)
+                .view(&self.cpu_data, &self.gpu_data)
                 .map(AppMessage::MainWindow),
             Screen::Plotter => self.plot_window.view().map(AppMessage::PlotWindow),
         };
