@@ -1,11 +1,11 @@
 use crate::app::styles;
+use crate::app::tempmon::TempMonMessage;
 use crate::assets;
-use crate::AppMessage;
 use iced::widget::{button, column, container, row, svg};
 use iced::{Center, Element, Fill};
 
 /// Render the app with header
-pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
+pub fn with_header(content: Element<TempMonMessage>) -> Element<TempMonMessage> {
     let main_page_button = button(
         container(
             svg(svg::Handle::from_memory(assets::MENU_ICON))
@@ -17,7 +17,7 @@ pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
         .width(35)
         .height(35),
     )
-    .on_press(AppMessage::MainButtonPressed)
+    .on_press(TempMonMessage::MainButtonPressed)
     .style(styles::rounded_button_style);
 
     let plotter_page = button(
@@ -31,7 +31,7 @@ pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
         .width(35)
         .height(35),
     )
-    .on_press(AppMessage::PlotterButtonPressed)
+    .on_press(TempMonMessage::PlotterButtonPressed)
     .style(styles::rounded_button_style);
 
     let settings_page = button(
@@ -45,7 +45,7 @@ pub fn with_header(content: Element<AppMessage>) -> Element<AppMessage> {
         .width(35)
         .height(35),
     )
-    .on_press(AppMessage::ShowSettingsModal)
+    .on_press(TempMonMessage::ShowSettingsModal)
     .style(styles::rounded_button_style);
 
     let header = container(

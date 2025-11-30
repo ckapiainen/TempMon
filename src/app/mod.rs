@@ -7,3 +7,4 @@ pub mod service;
 pub mod settings;
 pub mod styles;
 mod temp_graph;
+pub(crate) mod tempmon;

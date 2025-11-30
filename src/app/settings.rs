@@ -1,7 +1,7 @@
 use crate::app::modal::modal;
 use crate::app::service::{get_service_state, ServiceState};
 use crate::app::styles;
-use crate::AppMessage;
+use crate::app::tempmon::TempMonMessage;
 use anyhow::{Context, Result};
 use iced::widget::{
     button, checkbox, column, container, pick_list, row, rule, scrollable, slider, text, text_input,
@@ -53,6 +53,7 @@ impl fmt::Display for TempUnits {
 }
 
 impl TempUnits {
+    /// Method for converting between temperature units
     pub fn convert(&self, value: f32, to_unit: TempUnits) -> f32 {
         if self == &to_unit {
             return value; // No conversion needed
@@ -75,7 +76,12 @@ impl TempUnits {
     /// Convert a Celsius value to this unit and format with symbol
     pub fn format_from_celsius(&self, celsius_value: f32, decimals: usize) -> String {
         let converted = TempUnits::Celsius.convert(celsius_value, *self);
-        format!("{:.decimals$}{}", converted, self.symbol(), decimals = decimals)
+        format!(
+            "{:.decimals$}{}",
+            converted,
+            self.symbol(),
+            decimals = decimals
+        )
     }
 }
 impl Default for Settings {
@@ -113,6 +119,7 @@ impl Settings {
         }
     }
 
+    /// Load settings to disk
     pub fn load() -> Result<Self> {
         let pawnio = get_service_state("PawnIO").unwrap_or(ServiceState::Stopped);
         let lhm_service =
@@ -156,6 +163,7 @@ impl Settings {
         })
     }
 
+    /// Save settings to disk
     pub fn save(&self) -> Result<()> {
         let path = Self::get_config_path();
 
@@ -190,10 +198,11 @@ impl Settings {
 
     /// Format a Celsius temperature value in the user's selected unit
     pub fn format_temp(&self, celsius_value: f32, decimals: usize) -> String {
-        self.temp_unit().format_from_celsius(celsius_value, decimals)
+        self.temp_unit()
+            .format_from_celsius(celsius_value, decimals)
     }
 
-    pub fn view<'a>(&'a self, base: Element<'a, AppMessage>) -> Element<'a, AppMessage> {
+    pub fn view<'a>(&'a self, base: Element<'a, TempMonMessage>) -> Element<'a, TempMonMessage> {
         // Header with title and close button
         let header = container(
             row![
@@ -204,7 +213,7 @@ impl Settings {
                         color: Some(Color::from_rgb(0.9, 0.9, 0.9))
                     }),
                 button(text("✕").size(20))
-                    .on_press(AppMessage::HideSettingsModal)
+                    .on_press(TempMonMessage::HideSettingsModal)
                     .padding([4, 10])
                     .style(styles::header_button_style),
             ]
@@ -293,7 +302,7 @@ impl Settings {
             pick_list(
                 [Theme::Dracula, Theme::Ferra, Theme::Dark, Theme::Nord],
                 Some(&self.theme),
-                AppMessage::ThemeChanged,
+                TempMonMessage::ThemeChanged,
             )
             .width(Length::Fill)
             .padding(10),
@@ -306,9 +315,9 @@ impl Settings {
                 color: Some(Color::from_rgb(0.6, 0.6, 0.6))
             }),
             checkbox("Start with Windows", self.start_with_windows)
-                .on_toggle(AppMessage::ToggleStartWithWindows),
+                .on_toggle(TempMonMessage::ToggleStartWithWindows),
             checkbox("Start minimized to tray", self.start_minimized)
-                .on_toggle(AppMessage::ToggleStartMinimized),
+                .on_toggle(TempMonMessage::ToggleStartMinimized),
             column![
                 text("Update Interval")
                     .size(15)
@@ -319,7 +328,7 @@ impl Settings {
                     slider(
                         0.5..=10.0,
                         self.data_update_interval,
-                        AppMessage::UpdateIntervalChanged
+                        TempMonMessage::UpdateIntervalChanged
                     )
                     .step(0.5)
                     .width(Length::Fill),
@@ -365,7 +374,7 @@ impl Settings {
                 pick_list(
                     [TempUnits::Celsius, TempUnits::Fahrenheit,],
                     self.selected_temp_units,
-                    AppMessage::TempUnitSelected,
+                    TempMonMessage::TempUnitSelected,
                 )
                 .width(140)
                 .padding(10),
@@ -383,7 +392,7 @@ impl Settings {
                                 color: Some(Color::from_rgb(0.7, 0.7, 0.7))
                             }),
                         text_input("60", &self.temp_low_input)
-                            .on_input(AppMessage::TempLowThresholdChanged)
+                            .on_input(TempMonMessage::TempLowThresholdChanged)
                             .padding(10)
                             .width(Length::Fixed(80.0)),
                     ]
@@ -395,7 +404,7 @@ impl Settings {
                                 color: Some(Color::from_rgb(0.7, 0.7, 0.7))
                             }),
                         text_input("80", &self.temp_high_input)
-                            .on_input(AppMessage::TempHighThresholdChanged)
+                            .on_input(TempMonMessage::TempHighThresholdChanged)
                             .padding(10)
                             .width(Length::Fixed(80.0)),
                     ]
@@ -423,7 +432,7 @@ impl Settings {
                 .width(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center),
         )
-        .on_press(crate::AppMessage::SaveSettings)
+        .on_press(TempMonMessage::SaveSettings)
         .padding(12)
         .width(Length::Fill)
         .style(styles::rounded_button_style);
@@ -490,6 +499,11 @@ impl Settings {
             .height(600)
             .style(styles::modal_generic);
 
-        modal(base, modal_content, AppMessage::HideSettingsModal, false)
+        modal(
+            base,
+            modal_content,
+            TempMonMessage::HideSettingsModal,
+            false,
+        )
     }
 }
