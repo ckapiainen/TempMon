@@ -1,3 +1,4 @@
+use crate::app::settings::{Settings, TempUnits};
 use crate::app::styles;
 use crate::assets;
 use crate::collectors::cpu_collector::CpuData;
@@ -115,6 +116,7 @@ impl MainWindow {
         &self,
         cpu_data: &'a CpuData,
         gpu_data: &'a Vec<GpuData>,
+        settings: &'a Settings,
     ) -> Element<'a, MainWindowMessage> {
         let core_usage_vector = &cpu_data.core_utilization;
         let core_power_draw_vector = &cpu_data.core_power_draw;
@@ -191,34 +193,44 @@ impl MainWindow {
             let temp = column![
                 text("TEMP").size(20),
                 rich_text![
-                    span(format!("{:.1}", cpu_data.temp)).size(55),
+                    span(format!(
+                        "{:.1}",
+                        TempUnits::Celsius.convert(cpu_data.temp, settings.temp_unit())
+                    ))
+                    .size(55),
                     span(" \u{00B0}").size(38).font(Font {
                         weight: font::Weight::Light,
                         ..Font::default()
                     }),
-                    span("C")
-                        .font(Font {
-                            weight: font::Weight::Light,
-                            ..Font::default()
-                        })
-                        .size(35),
+                    span(match settings.temp_unit() {
+                        TempUnits::Celsius => "C",
+                        TempUnits::Fahrenheit => "F",
+                    })
+                    .font(Font {
+                        weight: font::Weight::Light,
+                        ..Font::default()
+                    })
+                    .size(35),
                 ]
                 .on_link_click(never),
                 container(
                     column![
                         row![
-                            text(format!("L: {:.1}°C", cpu_data.temp_min))
+                            text(format!("L: {}", settings.format_temp(cpu_data.temp_min, 1)))
                                 .size(16)
                                 .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                            text(format!("H: {:.1}°C", cpu_data.temp_max))
+                            text(format!("H: {}", settings.format_temp(cpu_data.temp_max, 1)))
                                 .size(16)
                                 .color(Color::from_rgb(0.7, 0.7, 0.7)),
                         ]
                         .spacing(4),
-                        text(format!("Avg: {:.1}°C", cpu_data.get_temp_avg()))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(format!(
+                            "Avg: {}",
+                            settings.format_temp(cpu_data.get_temp_avg(), 1)
+                        ))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                     ]
                     .spacing(3)
                     .align_x(Center)
@@ -266,7 +278,7 @@ impl MainWindow {
         } else {
             // Collapsed view - show header with key metrics in one line
             let collapsed_info = row![
-                text(format!("{}°C", cpu_data.temp as i32)).size(25),
+                text(settings.format_temp(cpu_data.temp, 0)).size(25),
                 text("|").size(25),
                 text(format!("{:.1}%", cpu_data.usage)).size(25),
             ]
@@ -532,32 +544,48 @@ impl MainWindow {
             let middle_column = column![
                 text("CORE TEMP").size(18),
                 rich_text![
-                    span(format!("{:.1}", gpu_data[0].core_temp)).size(48),
+                    span(format!(
+                        "{:.1}",
+                        TempUnits::Celsius.convert(gpu_data[0].core_temp, settings.temp_unit())
+                    ))
+                    .size(48),
                     span(" \u{00B0}").size(32).font(Font {
                         weight: font::Weight::Light,
                         ..Font::default()
                     }),
-                    span("C")
-                        .font(Font {
-                            weight: font::Weight::Light,
-                            ..Font::default()
-                        })
-                        .size(30),
+                    span(match settings.temp_unit() {
+                        TempUnits::Celsius => "C",
+                        TempUnits::Fahrenheit => "F",
+                    })
+                    .font(Font {
+                        weight: font::Weight::Light,
+                        ..Font::default()
+                    })
+                    .size(30),
                 ]
                 .on_link_click(never),
                 container(
                     row![
-                        text(format!("L: {:.1}°C", gpu_data[0].core_temp_min))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(format!(
+                            "L: {}",
+                            settings.format_temp(gpu_data[0].core_temp_min, 1)
+                        ))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                         text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!("Avg: {:.1}°C", gpu_data[0].get_core_temp_avg()))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(format!(
+                            "Avg: {}",
+                            settings.format_temp(gpu_data[0].get_core_temp_avg(), 1)
+                        ))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                         text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!("H: {:.1}°C", gpu_data[0].core_temp_max))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(format!(
+                            "H: {}",
+                            settings.format_temp(gpu_data[0].core_temp_max, 1)
+                        ))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                     ]
                     .spacing(4)
                 )
@@ -571,35 +599,49 @@ impl MainWindow {
                 }),
                 text("MEMORY JUNCTION").size(16),
                 rich_text![
-                    span(format!("{:.1}", gpu_data[0].memory_junction_temp)).size(48),
+                    span(format!(
+                        "{:.1}",
+                        TempUnits::Celsius
+                            .convert(gpu_data[0].memory_junction_temp, settings.temp_unit())
+                    ))
+                    .size(48),
                     span(" \u{00B0}").size(32).font(Font {
                         weight: font::Weight::Light,
                         ..Font::default()
                     }),
-                    span("C")
-                        .font(Font {
-                            weight: font::Weight::Light,
-                            ..Font::default()
-                        })
-                        .size(30),
+                    span(match settings.temp_unit() {
+                        TempUnits::Celsius => "C",
+                        TempUnits::Fahrenheit => "F",
+                    })
+                    .font(Font {
+                        weight: font::Weight::Light,
+                        ..Font::default()
+                    })
+                    .size(30),
                 ]
                 .on_link_click(never),
                 container(
                     row![
-                        text(format!("L: {:.1}°C", gpu_data[0].memory_junction_temp_min))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                         text(format!(
-                            "Avg: {:.1}°C",
-                            gpu_data[0].get_memory_junction_temp_avg()
+                            "L: {}",
+                            settings.format_temp(gpu_data[0].memory_junction_temp_min, 1)
                         ))
                         .size(16)
                         .color(Color::from_rgb(0.7, 0.7, 0.7)),
                         text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!("H: {:.1}°C", gpu_data[0].memory_junction_temp_max))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(format!(
+                            "Avg: {}",
+                            settings.format_temp(gpu_data[0].get_memory_junction_temp_avg(), 1)
+                        ))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        text(format!(
+                            "H: {}",
+                            settings.format_temp(gpu_data[0].memory_junction_temp_max, 1)
+                        ))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                     ]
                     .spacing(4)
                 )
@@ -655,9 +697,9 @@ impl MainWindow {
         } else {
             // Collapsed view - show header with key metrics in one line
             let collapsed_info = row![
-                text(format!("{}°C", gpu_data[0].core_temp as i32)).size(25),
+                text(settings.format_temp(gpu_data[0].core_temp, 0)).size(25),
                 text("|").size(25),
-                text(format!("{}°C", gpu_data[0].memory_junction_temp as i32)).size(25),
+                text(settings.format_temp(gpu_data[0].memory_junction_temp, 0)).size(25),
                 text("|").size(25),
                 text(format!("{:.1}%", gpu_data[0].core_load)).size(25),
             ]

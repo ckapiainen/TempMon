@@ -6,7 +6,7 @@ mod utils;
 
 use app::plot_window;
 use app::plot_window::PlotWindowMessage;
-use app::settings::Settings;
+use app::settings::{Settings, TempUnits};
 use app::{layout, main_window};
 use collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
 use collectors::{cpu_collector::CpuData, gpu_collector::GpuData};
@@ -143,9 +143,10 @@ impl App {
     /// Update tray tooltip with live hw data
     // TODO: Temperature thresholds for icon color changes are configurable in settings
     fn update_tray_tooltip(&self) {
+        let temp_str = self.settings.format_temp(self.cpu_data.temp, 0);
         let mut tooltip = format!(
-            "CPU: {:.0}°C ({:.0}%)\nPower: {:.1}W",
-            self.cpu_data.temp, self.cpu_data.usage, self.cpu_data.total_power_draw
+            "CPU: {} ({:.0}%)\nPower: {:.1}W",
+            temp_str, self.cpu_data.usage, self.cpu_data.total_power_draw
         );
 
         // Append error message if present
@@ -454,16 +455,15 @@ impl App {
                 // Update tray tooltip with fresh hardware data
                 self.update_tray_tooltip();
 
+                // Convert temperature to user's selected unit for CSV logging
+                let selected_unit = self.settings.temp_unit();
+                let converted_temp = TempUnits::Celsius.convert(self.cpu_data.temp, selected_unit);
+
                 // Log CPU data to CSV
                 let entry = CsvCpuLogEntry {
                     timestamp: chrono::Local::now().to_rfc3339(),
-                    temperature_unit: self
-                        .settings
-                        .selected_temp_units
-                        .as_ref()
-                        .map(|u| u.to_string())
-                        .unwrap_or_else(|| "C".to_string()),
-                    temperature: self.cpu_data.temp,
+                    temperature_unit: selected_unit.to_string(),
+                    temperature: converted_temp,
                     cpu_usage: self.cpu_data.usage,
                     power_draw: self.cpu_data.total_power_draw,
                 };
@@ -507,7 +507,7 @@ impl App {
         let page = match self.current_screen {
             Screen::Main => self
                 .main_window
-                .view(&self.cpu_data, &self.gpu_data)
+                .view(&self.cpu_data, &self.gpu_data, &self.settings)
                 .map(AppMessage::MainWindow),
             Screen::Plotter => self.plot_window.view().map(AppMessage::PlotWindow),
         };

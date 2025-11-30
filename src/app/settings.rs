@@ -63,6 +63,20 @@ impl TempUnits {
             _ => value,
         }
     }
+
+    /// Returns the symbol for this temperature unit ("°C" or "°F")
+    pub fn symbol(&self) -> &'static str {
+        match self {
+            TempUnits::Celsius => "°C",
+            TempUnits::Fahrenheit => "°F",
+        }
+    }
+
+    /// Convert a Celsius value to this unit and format with symbol
+    pub fn format_from_celsius(&self, celsius_value: f32, decimals: usize) -> String {
+        let converted = TempUnits::Celsius.convert(celsius_value, *self);
+        format!("{:.decimals$}{}", converted, self.symbol(), decimals = decimals)
+    }
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -83,7 +97,8 @@ impl Default for Settings {
     }
 }
 
-// TODO: MORE settings. Add check to see if PawnIO and lhmservice are installed and running
+// TODO: MORE settings.
+// TODO: start with windows and minimized
 // Tray icon:
 // "Show temperature" checkbox
 // "Show CPU usage" checkbox
@@ -166,6 +181,16 @@ impl Settings {
         fs::write(&path, toml).with_context(|| format!("Failed to write config to {:?}", path))?;
         dbg!("Saved config to disk");
         Ok(())
+    }
+
+    /// Get the selected temperature unit, defaulting to Celsius if None
+    pub fn temp_unit(&self) -> TempUnits {
+        self.selected_temp_units.unwrap_or(TempUnits::Celsius)
+    }
+
+    /// Format a Celsius temperature value in the user's selected unit
+    pub fn format_temp(&self, celsius_value: f32, decimals: usize) -> String {
+        self.temp_unit().format_from_celsius(celsius_value, decimals)
     }
 
     pub fn view<'a>(&'a self, base: Element<'a, AppMessage>) -> Element<'a, AppMessage> {

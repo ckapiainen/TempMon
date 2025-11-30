@@ -61,7 +61,7 @@ impl PlotWindow {
             process_combo_box: combo_box::State::new(available_processes.clone()),
             available_processes,
             selected_processes: vec![],
-            sidebar_expanded: Animated::new(1.0).duration(300.0).easing(Easing::EaseInOut),
+            sidebar_expanded: Animated::new(0.0).duration(300.0).easing(Easing::EaseInOut),
             now: Instant::now(),
         }
     }
