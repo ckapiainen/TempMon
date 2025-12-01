@@ -7,12 +7,20 @@ use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ComponentType {
+    CPU,
+    GPU,
+    RAM,
+    SSD,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CsvCpuLogEntry {
+pub struct HardwareLogEntry {
     pub timestamp: String,
+    pub component_type: ComponentType,
     pub temperature_unit: String,
     pub temperature: f32,
-    pub cpu_usage: f32,
+    pub usage: f32,
     pub power_draw: f32,
 }
 #[derive(Debug)]
@@ -22,8 +30,8 @@ pub struct CsvLogger {
     pub timestamp: DateTime<Local>,
     pub runtime_start: SystemTime,
     write_buffer_size: usize,
-    pub write_buffer: Vec<CsvCpuLogEntry>,
-    pub graph_data_buffer: Vec<CsvCpuLogEntry>,
+    pub write_buffer: Vec<HardwareLogEntry>,
+    pub graph_data_buffer: Vec<HardwareLogEntry>,
 }
 
 impl CsvLogger {
@@ -53,7 +61,7 @@ impl CsvLogger {
             path,
             timestamp: Local::now(),
             runtime_start: SystemTime::now(),
-            write_buffer_size: 50, // TODO: Change back to 50 in prod. Make it configurable?
+            write_buffer_size: 1, // TODO: Change back to 50 in prod. Make it configurable?
             write_buffer: vec![],
             graph_data_buffer: vec![],
         })
@@ -63,19 +71,19 @@ impl CsvLogger {
     //     self.path = new_path;
     //     self.wtr = Self::open_csv_writer(&self.path).unwrap();
     // }
-    pub fn read(&self) -> Result<Vec<CsvCpuLogEntry>> {
+    pub fn read(&self) -> Result<Vec<HardwareLogEntry>> {
         let mut rdr = csv::ReaderBuilder::new()
             .delimiter(b';')
             .from_path(&self.path)?;
         let mut result = vec![];
         for data in rdr.deserialize() {
-            let record: CsvCpuLogEntry = data?;
+            let record: HardwareLogEntry = data?;
             println!("{:?}", record);
             result.push(record);
         }
         Ok(result)
     }
-    pub fn write(&mut self, mut entries: Vec<CsvCpuLogEntry>) -> Result<(), Error> {
+    pub fn write(&mut self, mut entries: Vec<HardwareLogEntry>) -> Result<(), Error> {
         // Check current day if new writer with updated path is needed
         let today = Local::now();
         let date_str = today.format("%d-%m-%Y").to_string();
@@ -86,7 +94,7 @@ impl CsvLogger {
 
             self.timestamp = today;
             let logs_dir = Self::get_logs_dir();
-            self.path = logs_dir.join(format!("{}_cpu_logs.csv", date_str));
+            self.path = logs_dir.join(format!("{}_hardware_logs.csv", date_str));
             self.wtr = Self::open_csv_writer(&self.path)?;
         }
 

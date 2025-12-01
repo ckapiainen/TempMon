@@ -4,7 +4,7 @@ use crate::app::{layout, main_window, plot_window};
 use crate::collectors::cpu_collector::CpuData;
 use crate::collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
 use crate::collectors::{CpuCoreLHMQuery, GpuData, GpuLHMQuery};
-use crate::utils::csv_logger::{CsvCpuLogEntry, CsvLogger};
+use crate::utils::csv_logger::{ComponentType, CsvLogger, HardwareLogEntry};
 use crate::{app, connect_to_lhm_service};
 use colored::Colorize;
 use iced::widget::container;
@@ -391,11 +391,12 @@ impl TempMon {
                 let converted_temp = TempUnits::Celsius.convert(self.cpu_data.temp, selected_unit);
 
                 // Log CPU data to CSV
-                let entry = CsvCpuLogEntry {
+                let entry = HardwareLogEntry {
                     timestamp: chrono::Local::now().to_rfc3339(),
+                    component_type: ComponentType::CPU,
                     temperature_unit: selected_unit.to_string(),
                     temperature: converted_temp,
-                    cpu_usage: self.cpu_data.usage,
+                    usage: self.cpu_data.usage,
                     power_draw: self.cpu_data.total_power_draw,
                 };
 
@@ -415,7 +416,7 @@ impl TempMon {
                     PlotWindowMessage::Tick,
                     self.settings
                         .selected_temp_units
-                        .unwrap_or(app::settings::TempUnits::Celsius),
+                        .unwrap_or(TempUnits::Celsius),
                 );
                 Task::none()
             }
@@ -424,10 +425,42 @@ impl TempMon {
                 for (i, query) in gpu_queries.into_iter().enumerate() {
                     if let Some(gpu) = self.gpu_data.get_mut(i) {
                         gpu.update_lhm_data(query);
+
+                        // Convert temperature to user's selected unit for CSV logging
+                        let selected_unit = self.settings.temp_unit();
+                        let converted_temp =
+                            TempUnits::Celsius.convert(self.gpu_data[i].core_temp, selected_unit);
+
+                        // Log CPU data to CSV
+                        let entry = HardwareLogEntry {
+                            timestamp: chrono::Local::now().to_rfc3339(),
+                            component_type: ComponentType::GPU,
+                            temperature_unit: selected_unit.to_string(),
+                            temperature: converted_temp,
+                            usage: self.gpu_data[i].core_load,
+                            power_draw: self.gpu_data[i].power,
+                        };
+
+                        match self.csv_logger.write(vec![entry]) {
+                            Ok(_) => {
+                                // Clear error on successful write
+                                self.last_error = None;
+                            }
+                            Err(e) => {
+                                let error_msg = format!("CSV write failed: {}", e);
+                                eprintln!("{}", error_msg);
+                                self.last_error = Some(error_msg);
+                            }
+                        }
+                        self.plot_window.update(
+                            &self.csv_logger,
+                            PlotWindowMessage::Tick,
+                            self.settings
+                                .selected_temp_units
+                                .unwrap_or(TempUnits::Celsius),
+                        );
                     }
                 }
-                // Update tray tooltip with fresh GPU data
-                self.update_tray_tooltip();
                 Task::none()
             }
         }

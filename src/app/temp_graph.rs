@@ -1,11 +1,12 @@
 use crate::app::settings::TempUnits;
-use crate::utils::csv_logger::CsvLogger;
+use crate::utils::csv_logger::{ComponentType, CsvLogger};
 use chrono::DateTime;
 use iced::{Color, Element};
 use iced_plot::{
     LineStyle, MarkerStyle, PlotUiMessage, PlotWidget, PlotWidgetBuilder, Series, Tick, TickWeight,
     TooltipContext,
 };
+use std::sync::Arc;
 
 pub struct TemperatureGraph {
     widget: PlotWidget,
@@ -96,12 +97,17 @@ impl TemperatureGraph {
         if buffer.is_empty() {
             return;
         }
-        // let label = match units {
-        //     TempUnits::Celsius => "Temperature (°C)",
-        //     TempUnits::Fahrenheit => "Temperature (°F)",
-        // };
-        // Set y label and limits based on selected units
-        // self.widget.set_y_axis_label(label);
+
+        // Update cursor provider with current units
+        let unit_symbol = match units {
+            TempUnits::Celsius => "C",
+            TempUnits::Fahrenheit => "F",
+        };
+        self.widget.set_cursor_provider(Arc::new(move |x, y| {
+            format!("Time: {:.0} s\nTemp: {:.1}°{}", x, y, unit_symbol)
+        }));
+
+        // Update Y-axis limits based on units
         match units {
             TempUnits::Celsius => self.widget.set_y_lim(20.0, 100.0),
             TempUnits::Fahrenheit => self.widget.set_y_lim(32.0, 212.0),
@@ -118,6 +124,7 @@ impl TemperatureGraph {
 
         let mut cpu_temp_series: Vec<[f64; 2]> = buffer
             .iter()
+            .filter(|entry| entry.component_type == ComponentType::CPU)
             .filter_map(|entry| {
                 // Parse timestamp
                 let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
@@ -130,7 +137,22 @@ impl TemperatureGraph {
             })
             .collect();
 
-        if !cpu_temp_series.is_empty() {
+        let mut gpu_temp_series: Vec<[f64; 2]> = buffer
+            .iter()
+            .filter(|entry| entry.component_type == ComponentType::GPU)
+            .filter_map(|entry| {
+                // Parse timestamp
+                let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
+                let x_seconds = (ts.timestamp() - start_ts) as f64;
+
+                // Convert temperature
+                let y_temp = units.convert(entry.temperature, TempUnits::Celsius);
+
+                Some([x_seconds, y_temp as f64])
+            })
+            .collect();
+
+        if !cpu_temp_series.is_empty() && !gpu_temp_series.is_empty() {
             let current_time = cpu_temp_series.last().unwrap()[0];
             let window_size = 60.0;
             let right_padding = 12.0; // start rolling the graph 12 sec before the end
@@ -151,19 +173,34 @@ impl TemperatureGraph {
                     cpu_temp_series.push(last_point);
                 }
             }
+            if gpu_temp_series.len() < 33 {
+                let last_point = *cpu_temp_series.last().unwrap();
+                while cpu_temp_series.len() < 33 {
+                    cpu_temp_series.push(last_point);
+                }
+            }
 
             self.widget.remove_series("waiting for data");
             self.widget.remove_series("CPU Temperature");
+            self.widget.remove_series("GPU Temperature");
 
-            let temp_series = Series::new(
+            let cpu_temp_series = Series::new(
                 cpu_temp_series,
-                MarkerStyle::circle(5.0),
-                LineStyle::Solid { width: 4.0 },
+                MarkerStyle::circle(4.0),
+                LineStyle::Solid { width: 3.0 },
             )
             .with_label("CPU Temperature")
             .with_color(Color::from_rgb(1.0, 0.2, 0.2));
 
-            self.widget.add_series(temp_series).unwrap();
+            let gpu_temp_series = Series::new(
+                gpu_temp_series,
+                MarkerStyle::circle(4.0),
+                LineStyle::Solid { width: 3.0 },
+            )
+            .with_label("GPU Temperature")
+            .with_color(Color::from_rgb(1.0, 0.4, 0.2));
+            self.widget.add_series(cpu_temp_series).unwrap();
+            self.widget.add_series(gpu_temp_series).unwrap();
         }
     }
 }

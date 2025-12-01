@@ -1,4 +1,4 @@
-use crate::app::cpu_total_power_and_usage_graph::PowerAndUsageGraph;
+use crate::app::cpu_power_and_usage_graph::PowerAndUsageGraph;
 use crate::app::settings::TempUnits;
 use crate::app::styles;
 use crate::app::temp_graph::TemperatureGraph;

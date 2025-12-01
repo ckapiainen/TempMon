@@ -1,4 +1,4 @@
-use crate::utils::csv_logger::CsvLogger;
+use crate::utils::csv_logger::{ComponentType, CsvLogger};
 use chrono::DateTime;
 use iced::{Color, Element};
 use iced_plot::{
@@ -102,6 +102,7 @@ impl PowerAndUsageGraph {
         // Extract power series
         let mut power_series: Vec<[f64; 2]> = buffer
             .iter()
+            .filter(|entry| entry.component_type == ComponentType::CPU)
             .filter_map(|entry| {
                 let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
                 let x_seconds = (ts.timestamp() - start_ts) as f64;
@@ -112,10 +113,11 @@ impl PowerAndUsageGraph {
         // Extract usage series
         let mut usage_series: Vec<[f64; 2]> = buffer
             .iter()
+            .filter(|entry| entry.component_type == ComponentType::CPU)
             .filter_map(|entry| {
                 let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
                 let x_seconds = (ts.timestamp() - start_ts) as f64;
-                Some([x_seconds, entry.cpu_usage as f64])
+                Some([x_seconds, entry.usage as f64])
             })
             .collect();
 
