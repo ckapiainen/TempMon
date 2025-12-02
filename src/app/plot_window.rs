@@ -1,4 +1,5 @@
-use crate::app::cpu_power_and_usage_graph::PowerAndUsageGraph;
+use crate::app::cpu_power_usage::CPUPowerAndUsageGraph;
+use crate::app::gpu_power_usage::GPUPowerAndUsageGraph;
 use crate::app::settings::TempUnits;
 use crate::app::styles;
 use crate::app::temp_graph::TemperatureGraph;
@@ -13,7 +14,8 @@ const SIDEBAR_COLLAPSED_WIDTH: f32 = 50.0;
 
 pub struct PlotWindow {
     temp_graph: TemperatureGraph,
-    total_power_and_usage_graph: PowerAndUsageGraph,
+    cpu_power_usage_graph: CPUPowerAndUsageGraph,
+    gpu_power_usage_graph: GPUPowerAndUsageGraph,
     // Process monitoring
     available_processes: Vec<String>,
     selected_processes: Vec<String>,
@@ -26,7 +28,8 @@ pub struct PlotWindow {
 #[derive(Debug, Clone)]
 pub enum PlotWindowMessage {
     TempPlotMessage(iced_plot::PlotUiMessage),
-    PowersAndUsagePlotMessage(iced_plot::PlotUiMessage),
+    CPUPowerUsagePlotMessage(iced_plot::PlotUiMessage),
+    GPUPowerUsagePlotMessage(iced_plot::PlotUiMessage),
     Tick,
     ToggleSidebar,
     ProcessSelected(String),
@@ -38,9 +41,9 @@ pub enum PlotWindowMessage {
 impl PlotWindow {
     pub fn new(temp_units_from_settings: String) -> Self {
         let units = if temp_units_from_settings == "Celsius" {
-            "C"
+            TempUnits::Celsius
         } else {
-            "F"
+            TempUnits::Fahrenheit
         };
 
         // Mock data
@@ -57,7 +60,8 @@ impl PlotWindow {
 
         Self {
             temp_graph: TemperatureGraph::new(units),
-            total_power_and_usage_graph: PowerAndUsageGraph::new(),
+            cpu_power_usage_graph: CPUPowerAndUsageGraph::new(),
+            gpu_power_usage_graph: GPUPowerAndUsageGraph::new(),
             process_combo_box: combo_box::State::new(available_processes.clone()),
             available_processes,
             selected_processes: vec![],
@@ -69,13 +73,17 @@ impl PlotWindow {
     pub fn update(&mut self, csv_logger: &CsvLogger, message: PlotWindowMessage, units: TempUnits) {
         match message {
             PlotWindowMessage::TempPlotMessage(msg) => self.temp_graph.update_ui(msg),
-            PlotWindowMessage::PowersAndUsagePlotMessage(msg) => {
-                self.total_power_and_usage_graph.update_ui(msg)
+            PlotWindowMessage::CPUPowerUsagePlotMessage(msg) => {
+                self.cpu_power_usage_graph.update_ui(msg)
+            }
+            PlotWindowMessage::GPUPowerUsagePlotMessage(msg) => {
+                self.gpu_power_usage_graph.update_ui(msg)
             }
             PlotWindowMessage::Tick => {
                 self.now = Instant::now();
                 self.temp_graph.update_data(csv_logger, units);
-                self.total_power_and_usage_graph.update_data(csv_logger);
+                self.cpu_power_usage_graph.update_data(csv_logger);
+                self.gpu_power_usage_graph.update_data(csv_logger);
             }
 
             // Sidebar controls
@@ -232,49 +240,55 @@ impl PlotWindow {
             .padding(5);
 
         /*
-        --- CPU GRAPHS ---
+        ========== TEMPERATURE SECTION ==========
         */
-        let cpu_section = column![
-            row![text("CPU Metrics").size(18).width(Length::Fill)].padding(5),
+        let temp_section = column![
+            row![text("Temperature").size(18).width(Length::Fill)].padding(5),
             container(
                 self.temp_graph
                     .view()
                     .map(PlotWindowMessage::TempPlotMessage)
             )
-            .height(Length::FillPortion(1))
-            .width(Length::Fill)
-            .style(styles::card_container_style),
-            text(" ").size(5),
-            container(
-                self.total_power_and_usage_graph
-                    .view()
-                    .map(PlotWindowMessage::PowersAndUsagePlotMessage)
-            )
-            .height(Length::FillPortion(1))
+            .height(Length::Fill)
             .width(Length::Fill)
             .style(styles::card_container_style),
         ]
         .spacing(10)
-        .width(Length::FillPortion(3));
+        .width(Length::FillPortion(2));
 
         /*
-          ========== GPU GRAPHS ==========
+        ========== POWER/USAGE METRICS COLUMN ==========
         */
-        let gpu_placeholder = container(
+        let metrics_column = column![
+            // CPU Power/Usage
             column![
-                text("GPU Metrics (Coming Soon)")
-                    .size(16)
-                    .style(|_theme| text::Style {
-                        color: Some(Color::from_rgb(0.5, 0.5, 0.5))
-                    }),
-                rule::horizontal(2),
+                row![text("CPU Metrics").size(18).width(Length::Fill)].padding(5),
+                container(
+                    self.cpu_power_usage_graph
+                        .view()
+                        .map(PlotWindowMessage::CPUPowerUsagePlotMessage)
+                )
+                .height(Length::FillPortion(1))
+                .width(Length::Fill)
+                .style(styles::card_container_style),
             ]
-            .spacing(15),
-        )
-        .width(Length::FillPortion(2))
-        .height(Length::Fill)
-        .padding(15)
-        .style(styles::card_container_style);
+            .spacing(10),
+            text(" ").size(5),
+            // GPU Power/Usage
+            column![
+                row![text("GPU Metrics").size(18).width(Length::Fill)].padding(5),
+                container(
+                    self.gpu_power_usage_graph
+                        .view()
+                        .map(PlotWindowMessage::GPUPowerUsagePlotMessage)
+                )
+                .height(Length::FillPortion(1))
+                .width(Length::Fill)
+                .style(styles::card_container_style),
+            ]
+            .spacing(10),
+        ]
+        .width(Length::FillPortion(3));
 
         /*
         ========== MAIN LAYOUT ==========
@@ -287,14 +301,14 @@ impl PlotWindow {
                 fill_mode: rule::FillMode::Full,
                 snap: false,
             }),
-            cpu_section,
+            temp_section,
             rule::vertical(1).style(|_theme| rule::Style {
                 color: Color::from_rgb(0.25, 0.25, 0.25),
                 radius: 0.0.into(),
                 fill_mode: rule::FillMode::Full,
                 snap: false,
             }),
-            gpu_placeholder
+            metrics_column
         ]
         .spacing(15)
         .padding(15)

@@ -1,4 +1,5 @@
-mod cpu_power_and_usage_graph;
+mod cpu_power_usage;
+mod gpu_power_usage;
 pub mod layout;
 pub mod main_window;
 pub mod modal;

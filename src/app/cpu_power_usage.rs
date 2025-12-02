@@ -6,12 +6,12 @@ use iced_plot::{
     TooltipContext,
 };
 
-pub struct PowerAndUsageGraph {
+pub struct CPUPowerAndUsageGraph {
     widget: PlotWidget,
     first_timestamp: Option<i64>,
 }
 
-impl PowerAndUsageGraph {
+impl CPUPowerAndUsageGraph {
     pub fn new() -> Self {
         // Initial dummy series
         let dummy_series =
@@ -22,7 +22,7 @@ impl PowerAndUsageGraph {
                 .with_x_label("Time (s)")
                 .with_tooltips(true)
                 .with_tooltip_provider(|ctx: &TooltipContext| {
-                    format!("t: {:.0} s\nValue: {:.1}", ctx.x, ctx.y)
+                    format!("Time: {:.0}s\nValue: {:.1}", ctx.x, ctx.y)
                 })
                 .with_autoscale_on_updates(true)
                 .with_x_lim(0.0, 60.0)

@@ -44,6 +44,7 @@ pub struct MainWindow {
 }
 
 //TODO: handle multi gpu setup
+//TODO: Check for CPU cores bar chart overflow: scrollable container?
 //TODO: Responsive layout: max size for cards and move them according to screen size (switch between column/row or some better way with iced api)
 //TODO: Tiling window management for cards? https://docs.iced.rs/iced_widget/pane_grid/struct.PaneGrid.html
 // TODO: 1: 5 sec timeout before setting min/max values. 2: 100% max value clips with box next to it
@@ -649,7 +650,7 @@ impl MainWindow {
                 .style(styles::stats_container_style),
             ]
             .align_x(Center)
-            .width(280);
+            .width(284);
 
             // Right column: Core Clock + Memory Clock + Package Power
             let right_column = column![
@@ -697,9 +698,9 @@ impl MainWindow {
         } else {
             // Collapsed view - show header with key metrics in one line
             let collapsed_info = row![
-                text(settings.format_temp(gpu_data[0].core_temp, 0)).size(25),
+                text(settings.format_temp(gpu_data[0].core_temp, 1)).size(25),
                 text("|").size(25),
-                text(settings.format_temp(gpu_data[0].memory_junction_temp, 0)).size(25),
+                text(settings.format_temp(gpu_data[0].memory_junction_temp, 1)).size(25),
                 text("|").size(25),
                 text(format!("{:.1}%", gpu_data[0].core_load)).size(25),
             ]

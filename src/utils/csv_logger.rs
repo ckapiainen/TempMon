@@ -37,10 +37,17 @@ pub struct CsvLogger {
 impl CsvLogger {
     // Helper function to get logs directory in AppData
     fn get_logs_dir() -> PathBuf {
-        if let Some(data_dir) = dirs::data_local_dir() {
-            data_dir.join("TempMon").join("logs")
-        } else {
+        if cfg!(debug_assertions) {
+            // dev write to project root /logs
             PathBuf::from("logs")
+        } else {
+            // prod write to %LOCALAPPDATA%/TempMon/logs
+            if let Some(data_dir) = dirs::data_local_dir() {
+                data_dir.join("TempMon").join("logs")
+            } else {
+                // fallback to project root
+                PathBuf::from("logs")
+            }
         }
     }
 
@@ -61,7 +68,7 @@ impl CsvLogger {
             path,
             timestamp: Local::now(),
             runtime_start: SystemTime::now(),
-            write_buffer_size: 1, // TODO: Change back to 50 in prod. Make it configurable?
+            write_buffer_size: if cfg!(debug_assertions) { 1 } else { 50 },
             write_buffer: vec![],
             graph_data_buffer: vec![],
         })
@@ -156,14 +163,14 @@ impl CsvLogger {
         if !file_exists {
             wtr.write_record(&[
                 "timestamp",
+                "component_type",
                 "temperature_unit",
                 "temperature",
-                "cpu_usage",
+                "usage",
                 "power_draw",
             ])?;
             wtr.flush()?;
         }
-
         Ok(wtr)
     }
 }
