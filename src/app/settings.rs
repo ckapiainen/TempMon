@@ -8,6 +8,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Background, Color, Element, Length, Theme};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::{fmt, fs};
 
 // Saved to disk
@@ -111,11 +112,17 @@ impl Default for Settings {
 // "Show power draw" checkbox
 impl Settings {
     // Helper function to get config path in AppData
-    fn get_config_path() -> std::path::PathBuf {
-        if let Some(data_dir) = dirs::data_local_dir() {
-            data_dir.join("TempMon").join("config").join("cfg.toml")
+    fn get_config_path() -> PathBuf {
+        if cfg!(debug_assertions) {
+            // dev write to project root /config
+            PathBuf::from("config/cfg.toml")
         } else {
-            std::path::PathBuf::from("config/cfg.toml")
+            // prod write to %LOCALAPPDATA%/TempMon/config
+            if let Some(data_dir) = dirs::data_local_dir() {
+                data_dir.join("TempMon").join("config").join("cfg.toml")
+            } else {
+                PathBuf::from("config/cfg.toml")
+            }
         }
     }
 
