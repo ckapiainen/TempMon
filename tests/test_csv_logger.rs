@@ -2,7 +2,7 @@
 mod csv_logger;
 #[cfg(test)]
 mod tests {
-    use crate::csv_logger::{CsvCpuLogEntry, CsvLogger};
+    use crate::csv_logger::{ComponentType, CsvLogger, HardwareLogEntry};
     use chrono::Local;
     use tempfile::tempdir;
     #[test]
@@ -12,11 +12,12 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
         let mut logger = CsvLogger::new(Some(temp_path)).unwrap();
 
-        let entries = vec![CsvCpuLogEntry {
+        let entries = vec![HardwareLogEntry {
             timestamp: Local::now().to_string(),
+            component_type: ComponentType::CPU,
             temperature_unit: "Celsius".to_string(),
             temperature: 65.5,
-            cpu_usage: 45.2,
+            usage: 45.2,
             power_draw: 35.8,
         }];
 
@@ -27,7 +28,7 @@ mod tests {
         let read_entries = logger.read().unwrap();
         assert_eq!(read_entries.len(), 1);
         assert_eq!(read_entries[0].temperature, 65.5);
-        assert_eq!(read_entries[0].cpu_usage, 45.2);
+        assert_eq!(read_entries[0].usage, 45.2);
         assert_eq!(read_entries[0].power_draw, 35.8);
         println!("{:?}", read_entries);
     }
@@ -43,11 +44,12 @@ mod tests {
         let mut logger = CsvLogger::new(Some(temp_path)).unwrap();
 
         // Write first entry (creates first file with today's date)
-        let entry1 = vec![CsvCpuLogEntry {
+        let entry1 = vec![HardwareLogEntry {
             timestamp: "2025-11-18 10:00:00".to_string(),
+            component_type: ComponentType::CPU,
             temperature_unit: "C".to_string(),
             temperature: 65.0,
-            cpu_usage: 50.0,
+            usage: 50.0,
             power_draw: 30.0,
         }];
         logger.write(entry1).unwrap();
@@ -62,11 +64,12 @@ mod tests {
         logger.timestamp = yesterday;
 
         // Write second entry (should create second file with new date)
-        let entry2 = vec![CsvCpuLogEntry {
+        let entry2 = vec![HardwareLogEntry {
             timestamp: "2025-11-18 11:00:00".to_string(),
+            component_type: ComponentType::CPU,
             temperature_unit: "C".to_string(),
             temperature: 70.0,
-            cpu_usage: 60.0,
+            usage: 60.0,
             power_draw: 35.0,
         }];
         logger.write(entry2).unwrap();
@@ -104,11 +107,12 @@ mod tests {
 
         // Write 5 entries
         for i in 0..5 {
-            let entry = vec![CsvCpuLogEntry {
+            let entry = vec![HardwareLogEntry {
                 timestamp: format!("2025-11-18 10:{:02}:00", i),
+                component_type: ComponentType::CPU,
                 temperature_unit: "C".to_string(),
                 temperature: 65.0 + i as f32,
-                cpu_usage: 50.0,
+                usage: 50.0,
                 power_draw: 30.0,
             }];
             logger.write(entry).unwrap();
