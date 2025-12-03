@@ -68,17 +68,23 @@ impl TempMon {
     // TODO: Temperature thresholds for icon color changes are configurable in settings
     fn update_tray_tooltip(&self) {
         let cpu_str = self.settings.format_temp(self.cpu_data.temp, 0);
-        let gpu_str = self.settings.format_temp(self.gpu_data[0].core_temp, 0);
+
         let mut tooltip = format!(
-            "CPU: {} {:.0}% {:.1}W {:.0}MHz\nGPU: {} {:.0}% {:.1}W",
+            "CPU: {} {:.0}% {:.1}W {:.0}MHz",
             cpu_str,
             self.cpu_data.usage,
             self.cpu_data.total_power_draw,
             self.cpu_data.current_frequency * 1000.0,
-            gpu_str,
-            self.gpu_data[0].core_load,
-            self.gpu_data[0].power
         );
+
+        //  Supports only one dedicated gpu systems for now
+        if let Some(gpu) = self.gpu_data.first() {
+            let gpu_str = self.settings.format_temp(gpu.core_temp, 0);
+            tooltip.push_str(&format!(
+                "\nGPU: {} {:.0}% {:.1}W",
+                gpu_str, gpu.core_load, gpu.power
+            ));
+        }
 
         // Append error message if present
         if let Some(error) = &self.last_error {

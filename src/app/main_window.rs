@@ -485,246 +485,254 @@ impl MainWindow {
         /*
          =========== GPU info card ==========
         */
-        let gpu_animation_factor = self
-            .gpu_card_expanded
-            .animate(std::convert::identity, self.now);
-        let gpu_card_height = GPU_CARD_COLLAPSED_HEIGHT
-            + (gpu_animation_factor * (GPU_CARD_EXPANDED_HEIGHT - GPU_CARD_COLLAPSED_HEIGHT));
-        let is_gpu_card_expanded = self.gpu_card_expanded.value > 0.5;
+        // Only build GPU card if we have at least one GPU
+        let all_cards = if let Some(first_gpu) = gpu_data.first() {
+            let gpu_animation_factor = self
+                .gpu_card_expanded
+                .animate(std::convert::identity, self.now);
+            let gpu_card_height = GPU_CARD_COLLAPSED_HEIGHT
+                + (gpu_animation_factor * (GPU_CARD_EXPANDED_HEIGHT - GPU_CARD_COLLAPSED_HEIGHT));
+            let is_gpu_card_expanded = self.gpu_card_expanded.value > 0.5;
 
-        // Clickable header
-        let gpu_header_button = button(
-            row![
-                svg(svg::Handle::from_memory(assets::GPU_ICON))
-                    .width(25)
-                    .height(25),
-                rich_text([span(&gpu_data[0].name).font(Font {
-                    weight: font::Weight::Bold,
-                    ..Font::default()
-                }),])
-                .on_link_click(never)
-                .size(17),
-            ]
-            .spacing(10)
-            .align_y(Center)
-            .padding(Padding {
-                top: 10.0,
-                right: 10.0,
-                bottom: 0.0,
-                left: 10.0,
-            }),
-        )
-        .on_press(MainWindowMessage::ToggleGpuCard)
-        .width(Fill)
-        .style(styles::header_button_style);
-
-        let gpu_card_content = if is_gpu_card_expanded {
-            // Expanded view - show full stats
-            // Left column: Core Load + Memory Usage
-            let memory_used_gb = gpu_data[0].memory_used / 1024.0;
-            let memory_total_gb = gpu_data[0].memory_total / 1024.0;
-            let memory_percentage = (gpu_data[0].memory_used / gpu_data[0].memory_total) * 100.0;
-
-            let left_column = column![
-                text("CORE LOAD").size(18),
-                text(format!("{:.1}%", gpu_data[0].core_load)).size(48),
-                container(rule::horizontal(1)).padding(Padding {
-                    top: 8.0,
-                    right: 0.0,
-                    bottom: 8.0,
-                    left: 0.0,
-                }),
-                text("MEMORY USAGE").size(16),
-                text(format!("{:.1} / {:.1} GB", memory_used_gb, memory_total_gb)).size(24),
-                text(format!("({:.1}%)", memory_percentage)).size(18),
-            ]
-            .align_x(Center)
-            .width(160);
-
-            // Middle column: Core Temp + Memory Junction Temp (both with L/A/H)
-            let middle_column = column![
-                text("CORE TEMP").size(18),
-                rich_text![
-                    span(format!(
-                        "{:.1}",
-                        TempUnits::Celsius.convert(gpu_data[0].core_temp, settings.temp_unit())
-                    ))
-                    .size(48),
-                    span(" \u{00B0}").size(32).font(Font {
-                        weight: font::Weight::Light,
+            // Clickable header
+            let gpu_header_button = button(
+                row![
+                    svg(svg::Handle::from_memory(assets::GPU_ICON))
+                        .width(25)
+                        .height(25),
+                    rich_text([span(&first_gpu.name).font(Font {
+                        weight: font::Weight::Bold,
                         ..Font::default()
-                    }),
-                    span(match settings.temp_unit() {
-                        TempUnits::Celsius => "C",
-                        TempUnits::Fahrenheit => "F",
-                    })
-                    .font(Font {
-                        weight: font::Weight::Light,
-                        ..Font::default()
-                    })
-                    .size(30),
+                    }),])
+                    .on_link_click(never)
+                    .size(17),
                 ]
-                .on_link_click(never),
-                container(
-                    row![
-                        text(format!(
-                            "L: {}",
-                            settings.format_temp(gpu_data[0].core_temp_min, 1)
-                        ))
-                        .size(16)
-                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!(
-                            "Avg: {}",
-                            settings.format_temp(gpu_data[0].get_core_temp_avg(), 1)
-                        ))
-                        .size(16)
-                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!(
-                            "H: {}",
-                            settings.format_temp(gpu_data[0].core_temp_max, 1)
-                        ))
-                        .size(16)
-                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                    ]
-                    .spacing(4)
-                )
-                .padding(8)
-                .style(styles::stats_container_style),
-                container(rule::horizontal(1)).padding(Padding {
-                    top: 8.0,
-                    right: 0.0,
-                    bottom: 8.0,
-                    left: 0.0,
+                .spacing(10)
+                .align_y(Center)
+                .padding(Padding {
+                    top: 10.0,
+                    right: 10.0,
+                    bottom: 0.0,
+                    left: 10.0,
                 }),
-                text("MEMORY JUNCTION").size(16),
-                rich_text![
-                    span(format!(
-                        "{:.1}",
-                        TempUnits::Celsius
-                            .convert(gpu_data[0].memory_junction_temp, settings.temp_unit())
-                    ))
-                    .size(48),
-                    span(" \u{00B0}").size(32).font(Font {
-                        weight: font::Weight::Light,
-                        ..Font::default()
-                    }),
-                    span(match settings.temp_unit() {
-                        TempUnits::Celsius => "C",
-                        TempUnits::Fahrenheit => "F",
-                    })
-                    .font(Font {
-                        weight: font::Weight::Light,
-                        ..Font::default()
-                    })
-                    .size(30),
-                ]
-                .on_link_click(never),
-                container(
-                    row![
-                        text(format!(
-                            "L: {}",
-                            settings.format_temp(gpu_data[0].memory_junction_temp_min, 1)
-                        ))
-                        .size(16)
-                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!(
-                            "Avg: {}",
-                            settings.format_temp(gpu_data[0].get_memory_junction_temp_avg(), 1)
-                        ))
-                        .size(16)
-                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!(
-                            "H: {}",
-                            settings.format_temp(gpu_data[0].memory_junction_temp_max, 1)
-                        ))
-                        .size(16)
-                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                    ]
-                    .spacing(4)
-                )
-                .padding(8)
-                .style(styles::stats_container_style),
-            ]
-            .align_x(Center)
-            .width(284);
-
-            // Right column: Core Clock + Memory Clock + Package Power
-            let right_column = column![
-                text("CORE CLOCK").size(16),
-                text(format!("{:.0} MHz", gpu_data[0].core_clock)).size(32),
-                container(rule::horizontal(1)).padding(Padding {
-                    top: 8.0,
-                    right: 0.0,
-                    bottom: 8.0,
-                    left: 0.0,
-                }),
-                text("MEMORY CLOCK").size(16),
-                text(format!("{:.0} MHz", gpu_data[0].memory_clock)).size(32),
-                container(rule::horizontal(1)).padding(Padding {
-                    top: 8.0,
-                    right: 0.0,
-                    bottom: 8.0,
-                    left: 0.0,
-                }),
-                text("PACKAGE POWER").size(16),
-                text(format!("{:.1} W", gpu_data[0].power)).size(32)
-            ]
-            .align_x(Center)
-            .width(160);
-
-            let stats_row = row![
-                left_column,
-                rule::vertical(1),
-                middle_column,
-                rule::vertical(1),
-                right_column
-            ]
-            .spacing(25)
-            .align_y(Center)
-            .padding(Padding {
-                top: 0.0,
-                right: 0.0,
-                bottom: 10.0,
-                left: 0.0,
-            });
-
-            column![gpu_header_button, rule::horizontal(1), stats_row]
-                .align_x(Center)
-                .spacing(15)
-        } else {
-            // Collapsed view - show header with key metrics in one line
-            let collapsed_info = row![
-                text(settings.format_temp(gpu_data[0].core_temp, 1)).size(25),
-                text("|").size(25),
-                text(settings.format_temp(gpu_data[0].memory_junction_temp, 1)).size(25),
-                text("|").size(25),
-                text(format!("{:.1}%", gpu_data[0].core_load)).size(25),
-            ]
-            .spacing(10)
-            .align_y(Center)
-            .padding(Padding {
-                top: 5.0,
-                right: 5.0,
-                bottom: 5.0,
-                left: 5.0,
-            });
-
-            column![row![gpu_header_button, collapsed_info,]
-                .width(Fill)
-                .align_y(Center)]
-        };
-        let gpu_card = container(gpu_card_content)
+            )
+            .on_press(MainWindowMessage::ToggleGpuCard)
             .width(Fill)
-            .height(gpu_card_height)
-            .align_x(Center)
-            .style(styles::card_container_style)
-            .clip(true);
+            .style(styles::header_button_style);
 
-        let all_cards = column![general_cpu_info_card, cores_card, gpu_card].spacing(20);
+            let gpu_card_content = if is_gpu_card_expanded {
+                // Expanded view - show full stats
+                // Left column: Core Load + Memory Usage
+                let memory_used_gb = first_gpu.memory_used / 1024.0;
+                let memory_total_gb = first_gpu.memory_total / 1024.0;
+                let memory_percentage = (first_gpu.memory_used / first_gpu.memory_total) * 100.0;
+
+                let left_column = column![
+                    text("CORE LOAD").size(18),
+                    text(format!("{:.1}%", first_gpu.core_load)).size(48),
+                    container(rule::horizontal(1)).padding(Padding {
+                        top: 8.0,
+                        right: 0.0,
+                        bottom: 8.0,
+                        left: 0.0,
+                    }),
+                    text("MEMORY USAGE").size(16),
+                    text(format!("{:.1} / {:.1} GB", memory_used_gb, memory_total_gb)).size(24),
+                    text(format!("({:.1}%)", memory_percentage)).size(18),
+                ]
+                .align_x(Center)
+                .width(160);
+
+                // Middle column: Core Temp + Memory Junction Temp (both with L/A/H)
+                let middle_column = column![
+                    text("CORE TEMP").size(18),
+                    rich_text![
+                        span(format!(
+                            "{:.1}",
+                            TempUnits::Celsius.convert(first_gpu.core_temp, settings.temp_unit())
+                        ))
+                        .size(48),
+                        span(" \u{00B0}").size(32).font(Font {
+                            weight: font::Weight::Light,
+                            ..Font::default()
+                        }),
+                        span(match settings.temp_unit() {
+                            TempUnits::Celsius => "C",
+                            TempUnits::Fahrenheit => "F",
+                        })
+                        .font(Font {
+                            weight: font::Weight::Light,
+                            ..Font::default()
+                        })
+                        .size(30),
+                    ]
+                    .on_link_click(never),
+                    container(
+                        row![
+                            text(format!(
+                                "L: {}",
+                                settings.format_temp(first_gpu.core_temp_min, 1)
+                            ))
+                            .size(16)
+                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(format!(
+                                "Avg: {}",
+                                settings.format_temp(first_gpu.get_core_temp_avg(), 1)
+                            ))
+                            .size(16)
+                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(format!(
+                                "H: {}",
+                                settings.format_temp(first_gpu.core_temp_max, 1)
+                            ))
+                            .size(16)
+                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        ]
+                        .spacing(4)
+                    )
+                    .padding(8)
+                    .style(styles::stats_container_style),
+                    container(rule::horizontal(1)).padding(Padding {
+                        top: 8.0,
+                        right: 0.0,
+                        bottom: 8.0,
+                        left: 0.0,
+                    }),
+                    text("MEMORY JUNCTION").size(16),
+                    rich_text![
+                        span(format!(
+                            "{:.1}",
+                            TempUnits::Celsius
+                                .convert(first_gpu.memory_junction_temp, settings.temp_unit())
+                        ))
+                        .size(48),
+                        span(" \u{00B0}").size(32).font(Font {
+                            weight: font::Weight::Light,
+                            ..Font::default()
+                        }),
+                        span(match settings.temp_unit() {
+                            TempUnits::Celsius => "C",
+                            TempUnits::Fahrenheit => "F",
+                        })
+                        .font(Font {
+                            weight: font::Weight::Light,
+                            ..Font::default()
+                        })
+                        .size(30),
+                    ]
+                    .on_link_click(never),
+                    container(
+                        row![
+                            text(format!(
+                                "L: {}",
+                                settings.format_temp(first_gpu.memory_junction_temp_min, 1)
+                            ))
+                            .size(16)
+                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(format!(
+                                "Avg: {}",
+                                settings.format_temp(first_gpu.get_memory_junction_temp_avg(), 1)
+                            ))
+                            .size(16)
+                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
+                            text(format!(
+                                "H: {}",
+                                settings.format_temp(first_gpu.memory_junction_temp_max, 1)
+                            ))
+                            .size(16)
+                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                        ]
+                        .spacing(4)
+                    )
+                    .padding(8)
+                    .style(styles::stats_container_style),
+                ]
+                .align_x(Center)
+                .width(284);
+
+                // Right column: Core Clock + Memory Clock + Package Power
+                let right_column = column![
+                    text("CORE CLOCK").size(16),
+                    text(format!("{:.0} MHz", first_gpu.core_clock)).size(32),
+                    container(rule::horizontal(1)).padding(Padding {
+                        top: 8.0,
+                        right: 0.0,
+                        bottom: 8.0,
+                        left: 0.0,
+                    }),
+                    text("MEMORY CLOCK").size(16),
+                    text(format!("{:.0} MHz", first_gpu.memory_clock)).size(32),
+                    container(rule::horizontal(1)).padding(Padding {
+                        top: 8.0,
+                        right: 0.0,
+                        bottom: 8.0,
+                        left: 0.0,
+                    }),
+                    text("PACKAGE POWER").size(16),
+                    text(format!("{:.1} W", first_gpu.power)).size(32)
+                ]
+                .align_x(Center)
+                .width(160);
+
+                let stats_row = row![
+                    left_column,
+                    rule::vertical(1),
+                    middle_column,
+                    rule::vertical(1),
+                    right_column
+                ]
+                .spacing(25)
+                .align_y(Center)
+                .padding(Padding {
+                    top: 0.0,
+                    right: 0.0,
+                    bottom: 10.0,
+                    left: 0.0,
+                });
+
+                column![gpu_header_button, rule::horizontal(1), stats_row]
+                    .align_x(Center)
+                    .spacing(15)
+            } else {
+                // Collapsed view - show header with key metrics in one line
+                let collapsed_info = row![
+                    text(settings.format_temp(first_gpu.core_temp, 1)).size(25),
+                    text("|").size(25),
+                    text(settings.format_temp(first_gpu.memory_junction_temp, 1)).size(25),
+                    text("|").size(25),
+                    text(format!("{:.1}%", first_gpu.core_load)).size(25),
+                ]
+                .spacing(10)
+                .align_y(Center)
+                .padding(Padding {
+                    top: 5.0,
+                    right: 5.0,
+                    bottom: 5.0,
+                    left: 5.0,
+                });
+
+                column![row![gpu_header_button, collapsed_info,]
+                    .width(Fill)
+                    .align_y(Center)]
+            };
+            let gpu_card = container(gpu_card_content)
+                .width(Fill)
+                .height(gpu_card_height)
+                .align_x(Center)
+                .style(styles::card_container_style)
+                .clip(true);
+
+            // Include GPU card in layout
+            column![general_cpu_info_card, cores_card, gpu_card].spacing(20)
+        } else {
+            // No GPU
+            column![general_cpu_info_card, cores_card].spacing(20)
+        };
+
         scrollable(container(all_cards).padding(20).width(Fill)).into()
     }
 }
