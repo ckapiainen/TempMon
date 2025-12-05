@@ -1,7 +1,7 @@
 use crate::app::plot_window::PlotWindowMessage;
 use crate::app::settings::{Settings, TempUnits};
 use crate::app::{layout, main_window, plot_window};
-use crate::collectors::cpu_collector::CpuData;
+use crate::collectors::cpu_data::CpuData;
 use crate::collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
 use crate::collectors::{CpuCoreLHMQuery, GpuData, GpuLHMQuery};
 use crate::utils::csv_logger::{ComponentType, CsvLogger, HardwareLogEntry};

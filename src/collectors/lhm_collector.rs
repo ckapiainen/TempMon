@@ -226,6 +226,5 @@ pub async fn lhm_gpu_queries(
                 .unwrap_or(0.0);
         }
     }
-
     gpu_data
 }

@@ -1,11 +1,8 @@
-mod cpu_power_usage;
-mod gpu_power_usage;
+mod graphs;
 pub mod layout;
 pub mod main_window;
 pub mod modal;
 pub mod plot_window;
-pub mod service;
 pub mod settings;
 pub mod styles;
-mod temp_graph;
 pub(crate) mod tempmon;

@@ -1,8 +1,8 @@
-use crate::app::cpu_power_usage::CPUPowerAndUsageGraph;
-use crate::app::gpu_power_usage::GPUPowerAndUsageGraph;
+use crate::app::graphs::cpu_power_usage::CPUPowerAndUsageGraph;
+use crate::app::graphs::gpu_power_usage::GPUPowerAndUsageGraph;
+use crate::app::graphs::temp_graph::TemperatureGraph;
 use crate::app::settings::TempUnits;
 use crate::app::styles;
-use crate::app::temp_graph::TemperatureGraph;
 use crate::utils::csv_logger::CsvLogger;
 use iced::widget::{button, column, combo_box, container, row, rule, scrollable, svg, text};
 use iced::{window, Alignment, Color, Element, Length, Subscription}; // Added Subscription

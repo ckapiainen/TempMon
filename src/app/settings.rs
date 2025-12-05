@@ -1,7 +1,7 @@
 use crate::app::modal::modal;
-use crate::app::service::{get_service_state, ServiceState};
 use crate::app::styles;
 use crate::app::tempmon::TempMonMessage;
+use crate::utils::service::{get_service_state, ServiceState};
 use anyhow::{Context, Result};
 use iced::widget::{
     button, checkbox, column, container, pick_list, row, rule, scrollable, slider, text, text_input,

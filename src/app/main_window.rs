@@ -1,13 +1,15 @@
 use crate::app::settings::{Settings, TempUnits};
 use crate::app::styles;
 use crate::assets;
-use crate::collectors::cpu_collector::CpuData;
+use crate::collectors::cpu_data::CpuData;
 use crate::collectors::GpuData;
 use iced::widget::{
-    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text, Row,
+    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text,
+    Button, Row,
 };
-use iced::{font, never, window, Center, Color, Element, Fill, Font, Padding, Subscription};
+use iced::{font, never, window, Center, Color, Element, Fill, Font, Padding, Subscription, Theme};
 use lilt::{Animated, Easing};
+use std::cmp::PartialEq;
 use std::time::Instant;
 
 // Card animation height constants
@@ -33,6 +35,7 @@ pub enum MainWindowMessage {
     ToggleCoresCard,
     ToggleGpuCard,
     Tick, // Frame update (REQUIRED for animations)
+    GpuButtonPressed(usize),
 }
 
 pub struct MainWindow {
@@ -40,6 +43,7 @@ pub struct MainWindow {
     cpu_card_expanded: Animated<f32, Instant>,
     cores_card_expanded: Animated<f32, Instant>,
     gpu_card_expanded: Animated<f32, Instant>,
+    selected_gpu_index: usize,
     now: Instant,
 }
 
@@ -55,6 +59,7 @@ impl MainWindow {
             cpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             cores_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             gpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
+            selected_gpu_index: 0,
             now: Instant::now(),
         }
     }
@@ -66,6 +71,9 @@ impl MainWindow {
             }
             MainWindowMessage::PowerButtonPressed => {
                 self.bar_chart_state = BarChartState::Power;
+            }
+            MainWindowMessage::GpuButtonPressed(index) => {
+                self.selected_gpu_index = index;
             }
             MainWindowMessage::ToggleCpuCard => {
                 // 0.0 Collapsed, 1.0 Expanded
@@ -396,7 +404,7 @@ impl MainWindow {
         // Icon buttons for usage and power
         let usage_button = button(
             container(
-                svg(svg::Handle::from_memory(crate::assets::MICROCHIP_ICON))
+                svg(svg::Handle::from_memory(assets::MICROCHIP_ICON))
                     .width(25)
                     .height(25),
             )
@@ -494,18 +502,36 @@ impl MainWindow {
                 + (gpu_animation_factor * (GPU_CARD_EXPANDED_HEIGHT - GPU_CARD_COLLAPSED_HEIGHT));
             let is_gpu_card_expanded = self.gpu_card_expanded.value > 0.5;
 
+            let gpu_switch_button_row: Row<'a, MainWindowMessage, Theme, iced::Renderer> =
+                Row::with_children(
+                    gpu_data
+                        .iter()
+                        .enumerate()
+                        .map(|(index, gpu)| {
+                            // // Determine if this button represents the currently selected GPU
+                            // let button_style = if index == self.selected_gpu_index {
+                            //     styles::selected_gpu_button_style // You'll need to define this
+                            // } else {
+                            //     styles::gpu_button_style // You'll need to define this
+                            // };
+
+                            button(text(format!("{}", gpu.name)))
+                                .on_press(MainWindowMessage::GpuButtonPressed(index))
+                                .style(styles::compact_icon_button_style)
+                                .into()
+                        })
+                        .collect::<Vec<Element<'a, MainWindowMessage, Theme, iced::Renderer>>>(),
+                )
+                .spacing(8)
+                .align_y(Center);
+
             // Clickable header
             let gpu_header_button = button(
                 row![
                     svg(svg::Handle::from_memory(assets::GPU_ICON))
                         .width(25)
                         .height(25),
-                    rich_text([span(&first_gpu.name).font(Font {
-                        weight: font::Weight::Bold,
-                        ..Font::default()
-                    }),])
-                    .on_link_click(never)
-                    .size(17),
+                    gpu_switch_button_row
                 ]
                 .spacing(10)
                 .align_y(Center)
