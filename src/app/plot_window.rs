@@ -36,7 +36,8 @@ pub enum PlotWindowMessage {
     RemoveProcess(String),
 }
 
-// TODO: Fix unit conversion in bot graphs. Process monitor..
+// TODO: Process monitor
+//TODO: toggle show/hide for gpu
 
 impl PlotWindow {
     pub fn new(temp_units_from_settings: String) -> Self {
@@ -70,7 +71,7 @@ impl PlotWindow {
         }
     }
 
-    pub fn update(&mut self, csv_logger: &CsvLogger, message: PlotWindowMessage, units: TempUnits) {
+    pub fn update(&mut self, csv_logger: &CsvLogger, message: PlotWindowMessage, units: TempUnits, gpu_data: &[crate::collectors::GpuData]) {
         match message {
             PlotWindowMessage::TempPlotMessage(msg) => self.temp_graph.update_ui(msg),
             PlotWindowMessage::CPUPowerUsagePlotMessage(msg) => {
@@ -81,9 +82,9 @@ impl PlotWindow {
             }
             PlotWindowMessage::Tick => {
                 self.now = Instant::now();
-                self.temp_graph.update_data(csv_logger, units);
+                self.temp_graph.update_data(csv_logger, units, gpu_data);
                 self.cpu_power_usage_graph.update_data(csv_logger);
-                self.gpu_power_usage_graph.update_data(csv_logger);
+                self.gpu_power_usage_graph.update_data(csv_logger, gpu_data);
             }
 
             // Sidebar controls

@@ -124,6 +124,67 @@ pub fn compact_icon_button_style(_theme: &Theme, status: button::Status) -> butt
     }
 }
 
+pub fn selected_gpu_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.28, 0.28, 0.30))),
+            border: Border {
+                color: Color::from_rgba(0.6, 0.6, 0.65, 0.8),
+                width: 1.5,
+                radius: Radius::from(10.0),
+            },
+            text_color: Color::WHITE,
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                offset: Vector::new(0.0, 2.0),
+                blur_radius: 5.0,
+            },
+            snap: false,
+        },
+        button::Status::Hovered => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.32, 0.32, 0.34))),
+            border: Border {
+                color: Color::from_rgba(0.7, 0.7, 0.75, 0.9),
+                width: 1.5,
+                radius: Radius::from(10.0),
+            },
+            text_color: Color::WHITE,
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.4),
+                offset: Vector::new(0.0, 2.5),
+                blur_radius: 6.0,
+            },
+            snap: false,
+        },
+        button::Status::Pressed => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.24, 0.24, 0.26))),
+            border: Border {
+                color: Color::from_rgba(0.5, 0.5, 0.55, 0.7),
+                width: 1.5,
+                radius: Radius::from(10.0),
+            },
+            text_color: Color::from_rgb(0.9, 0.9, 0.9),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.25),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 3.0,
+            },
+            snap: false,
+        },
+        button::Status::Disabled => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
+            border: Border {
+                color: Color::from_rgba(0.2, 0.2, 0.2, 0.3),
+                width: 1.0,
+                radius: Radius::from(10.0),
+            },
+            text_color: Color::from_rgb(0.4, 0.4, 0.4),
+            shadow: Shadow::default(),
+            snap: false,
+        },
+    }
+}
+
 pub fn card_container_style(_theme: &Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(Color::from_rgb(0.18, 0.18, 0.19))),

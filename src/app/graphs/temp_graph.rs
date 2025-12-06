@@ -1,4 +1,5 @@
 use crate::app::settings::TempUnits;
+use crate::collectors::GpuData;
 use crate::utils::csv_logger::{ComponentType, CsvLogger};
 use chrono::DateTime;
 use iced::{Color, Element};
@@ -92,7 +93,7 @@ impl TemperatureGraph {
         self.widget.update(msg);
     }
 
-    pub fn update_data(&mut self, csv_logger: &CsvLogger, units: TempUnits) {
+    pub fn update_data(&mut self, csv_logger: &CsvLogger, units: TempUnits, gpu_data: &[GpuData]) {
         let buffer = &csv_logger.graph_data_buffer;
         if buffer.is_empty() {
             return;
@@ -134,23 +135,26 @@ impl TemperatureGraph {
             })
             .collect();
 
-        let mut gpu_temp_series: Vec<[f64; 2]> = buffer
+        // Color palette for multiple GPUs
+        const GPU_TEMP_COLORS: [Color; 4] = [
+            Color::from_rgb(1.0, 0.5, 0.0),   // Orange - GPU 0
+            Color::from_rgb(1.0, 0.2, 0.2),   // Red - GPU 1
+            Color::from_rgb(1.0, 0.8, 0.0),   // Yellow - GPU 2
+            Color::from_rgb(1.0, 0.0, 0.5),   // Magenta - GPU 3
+        ];
+
+        // Collect all GPU temp entries
+        let gpu_entries: Vec<&_> = buffer
             .iter()
             .filter(|entry| entry.component_type == ComponentType::GPU)
-            .filter_map(|entry| {
-                // Parse timestamp
-                let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
-                let x_seconds = (ts.timestamp() - start_ts) as f64;
-
-                Some([x_seconds, entry.temperature as f64]) // NOTE: temp gets converted in main tempmon update loop
-            })
             .collect();
 
-        if !cpu_temp_series.is_empty() && !gpu_temp_series.is_empty() {
+        if !cpu_temp_series.is_empty() {
             let current_time = cpu_temp_series.last().unwrap()[0];
             let window_size = 60.0;
-            let right_padding = 12.0; // start rolling the graph 12 sec before the end
+            let right_padding = 12.0;
             let view_end = current_time + right_padding;
+
             // Scrolling logic
             if view_end > window_size {
                 self.widget.set_x_lim(view_end - window_size, view_end);
@@ -158,43 +162,69 @@ impl TemperatureGraph {
                 self.widget.set_x_lim(0.0, window_size);
             }
 
-            // If fewer than 33 points duplicate the last point
-            // Workaround: Pad to 33 points to force wgpu buffer update.
-            // Necessary to display points between 0 and 33
+            // Pad CPU series if needed
             if cpu_temp_series.len() < 33 {
                 let last_point = *cpu_temp_series.last().unwrap();
                 while cpu_temp_series.len() < 33 {
                     cpu_temp_series.push(last_point);
                 }
             }
-            if gpu_temp_series.len() < 33 {
-                let last_point = *cpu_temp_series.last().unwrap();
-                while cpu_temp_series.len() < 33 {
-                    cpu_temp_series.push(last_point);
-                }
-            }
 
+            // Remove old series
             self.widget.remove_series("waiting for data");
             self.widget.remove_series("CPU Temperature");
-            self.widget.remove_series("GPU Temperature");
+            for gpu in gpu_data.iter() {
+                self.widget.remove_series(&format!("{} Temp", gpu.name));
+            }
 
-            let cpu_temp_series = Series::new(
+            // Add CPU series
+            let cpu_series = Series::new(
                 cpu_temp_series,
                 MarkerStyle::circle(4.0),
                 LineStyle::Solid { width: 3.0 },
             )
             .with_label("CPU Temperature")
-            .with_color(Color::from_rgb(1.0, 0.2, 0.2));
+            .with_color(Color::from_rgb(0.2, 0.6, 1.0)); // Blue for CPU
 
-            let gpu_temp_series = Series::new(
-                gpu_temp_series,
-                MarkerStyle::circle(4.0),
-                LineStyle::Solid { width: 3.0 },
-            )
-            .with_label("GPU Temperature")
-            .with_color(Color::from_rgb(1.0, 0.4, 0.2));
-            self.widget.add_series(cpu_temp_series).unwrap();
-            self.widget.add_series(gpu_temp_series).unwrap();
+            self.widget.add_series(cpu_series).unwrap();
+
+            // Add separate series for each GPU
+            if !gpu_entries.is_empty() && !gpu_data.is_empty() {
+                for (gpu_idx, gpu) in gpu_data.iter().enumerate() {
+                    // Extract temp series for this GPU (match by position in log cycle)
+                    let mut gpu_temp_series: Vec<[f64; 2]> = gpu_entries
+                        .iter()
+                        .enumerate()
+                        .filter(|(idx, _)| idx % gpu_data.len() == gpu_idx)
+                        .filter_map(|(_, entry)| {
+                            let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
+                            let x_seconds = (ts.timestamp() - start_ts) as f64;
+                            Some([x_seconds, entry.temperature as f64])
+                        })
+                        .collect();
+
+                    if !gpu_temp_series.is_empty() {
+                        // Pad if needed
+                        if gpu_temp_series.len() < 33 {
+                            let last_point = *gpu_temp_series.last().unwrap();
+                            while gpu_temp_series.len() < 33 {
+                                gpu_temp_series.push(last_point);
+                            }
+                        }
+
+                        // Add GPU temp series
+                        let gpu_series = Series::new(
+                            gpu_temp_series,
+                            MarkerStyle::circle(4.0),
+                            LineStyle::Solid { width: 3.0 },
+                        )
+                        .with_label(&format!("{} Temp", gpu.name))
+                        .with_color(GPU_TEMP_COLORS[gpu_idx % GPU_TEMP_COLORS.len()]);
+
+                        self.widget.add_series(gpu_series).unwrap();
+                    }
+                }
+            }
         }
     }
 }

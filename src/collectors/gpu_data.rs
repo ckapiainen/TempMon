@@ -80,10 +80,16 @@ impl GpuData {
         }
     }
     pub fn get_core_temp_avg(&self) -> f32 {
+        if self.core_temp_avg.is_empty() {
+            return self.core_temp;
+        }
         let avg = self.core_temp_avg.iter().sum::<f32>() / self.core_temp_avg.len() as f32;
         (avg * 100.0).round() / 100.0 // Round to 2 decimal places
     }
     pub fn get_memory_junction_temp_avg(&self) -> f32 {
+        if self.memory_junction_temp_avg.is_empty() {
+            return self.memory_junction_temp;
+        }
         let avg = self.memory_junction_temp_avg.iter().sum::<f32>()
             / self.memory_junction_temp_avg.len() as f32;
         (avg * 100.0).round() / 100.0 // Round to 2 decimal places

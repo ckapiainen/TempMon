@@ -349,6 +349,7 @@ impl TempMon {
                     &self.csv_logger,
                     msg,
                     self.settings.selected_temp_units.unwrap(),
+                    &self.gpu_data,
                 );
                 Task::none()
             }
@@ -423,6 +424,7 @@ impl TempMon {
                     self.settings
                         .selected_temp_units
                         .unwrap_or(TempUnits::Celsius),
+                    &self.gpu_data,
                 );
                 Task::none()
             }
@@ -464,6 +466,7 @@ impl TempMon {
                             self.settings
                                 .selected_temp_units
                                 .unwrap_or(TempUnits::Celsius),
+                            &self.gpu_data,
                         );
                     }
                 }

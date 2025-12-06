@@ -21,7 +21,7 @@ const GPU_CARD_COLLAPSED_HEIGHT: f32 = 50.0;
 const GPU_CARD_EXPANDED_HEIGHT: f32 = 350.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BarChartState {
+pub enum CpuBarChartState {
     Usage,
     Power,
 }
@@ -39,7 +39,7 @@ pub enum MainWindowMessage {
 }
 
 pub struct MainWindow {
-    bar_chart_state: BarChartState,
+    cpu_bar_chart_state: CpuBarChartState,
     cpu_card_expanded: Animated<f32, Instant>,
     cores_card_expanded: Animated<f32, Instant>,
     gpu_card_expanded: Animated<f32, Instant>,
@@ -55,7 +55,7 @@ pub struct MainWindow {
 impl MainWindow {
     pub fn new() -> Self {
         Self {
-            bar_chart_state: BarChartState::Usage,
+            cpu_bar_chart_state: CpuBarChartState::Usage,
             cpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             cores_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             gpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
@@ -67,10 +67,10 @@ impl MainWindow {
     pub fn update(&mut self, message: MainWindowMessage) {
         match message {
             MainWindowMessage::UsageButtonPressed => {
-                self.bar_chart_state = BarChartState::Usage;
+                self.cpu_bar_chart_state = CpuBarChartState::Usage;
             }
             MainWindowMessage::PowerButtonPressed => {
-                self.bar_chart_state = BarChartState::Power;
+                self.cpu_bar_chart_state = CpuBarChartState::Power;
             }
             MainWindowMessage::GpuButtonPressed(index) => {
                 self.selected_gpu_index = index;
@@ -449,9 +449,9 @@ impl MainWindow {
             column![
                 header_row,
                 rule::horizontal(1),
-                match self.bar_chart_state {
-                    BarChartState::Usage => core_usage_row,
-                    BarChartState::Power => core_power_row,
+                match self.cpu_bar_chart_state {
+                    CpuBarChartState::Usage => core_usage_row,
+                    CpuBarChartState::Power => core_power_row,
                 }
             ]
             .align_x(Center)
@@ -459,9 +459,9 @@ impl MainWindow {
             .padding(10)
         } else {
             // Collapsed view - show summary with buttons
-            let mode_text = match self.bar_chart_state {
-                BarChartState::Usage => "Usage",
-                BarChartState::Power => "Power",
+            let mode_text = match self.cpu_bar_chart_state {
+                CpuBarChartState::Usage => "Usage",
+                CpuBarChartState::Power => "Power",
             };
 
             let collapsed_info = row![
@@ -508,16 +508,23 @@ impl MainWindow {
                         .iter()
                         .enumerate()
                         .map(|(index, gpu)| {
-                            // // Determine if this button represents the currently selected GPU
-                            // let button_style = if index == self.selected_gpu_index {
-                            //     styles::selected_gpu_button_style // You'll need to define this
-                            // } else {
-                            //     styles::gpu_button_style // You'll need to define this
-                            // };
+                            // Determine button style based on selection
+                            let button_style = if index == self.selected_gpu_index {
+                                styles::selected_gpu_button_style
+                            } else {
+                                styles::compact_icon_button_style
+                            };
 
-                            button(text(format!("{}", gpu.name)))
+                            // Determine button text based on card state
+                            let button_text = if is_gpu_card_expanded {
+                                format!("{}", gpu.name)
+                            } else {
+                                format!("{}", index)
+                            };
+
+                            button(text(button_text))
                                 .on_press(MainWindowMessage::GpuButtonPressed(index))
-                                .style(styles::compact_icon_button_style)
+                                .style(button_style)
                                 .into()
                         })
                         .collect::<Vec<Element<'a, MainWindowMessage, Theme, iced::Renderer>>>(),
@@ -549,13 +556,17 @@ impl MainWindow {
             let gpu_card_content = if is_gpu_card_expanded {
                 // Expanded view - show full stats
                 // Left column: Core Load + Memory Usage
-                let memory_used_gb = first_gpu.memory_used / 1024.0;
-                let memory_total_gb = first_gpu.memory_total / 1024.0;
-                let memory_percentage = (first_gpu.memory_used / first_gpu.memory_total) * 100.0;
+                let memory_used_gb = gpu_data[self.selected_gpu_index].memory_used / 1024.0;
+                let memory_total_gb = gpu_data[self.selected_gpu_index].memory_total / 1024.0;
+                let memory_percentage = if gpu_data[self.selected_gpu_index].memory_total > 0.0 {
+                    (gpu_data[self.selected_gpu_index].memory_used / gpu_data[self.selected_gpu_index].memory_total) * 100.0
+                } else {
+                    0.0
+                };
 
                 let left_column = column![
                     text("CORE LOAD").size(18),
-                    text(format!("{:.1}%", first_gpu.core_load)).size(48),
+                    text(format!("{:.1}%", gpu_data[self.selected_gpu_index].core_load)).size(48),
                     container(rule::horizontal(1)).padding(Padding {
                         top: 8.0,
                         right: 0.0,
@@ -575,7 +586,7 @@ impl MainWindow {
                     rich_text![
                         span(format!(
                             "{:.1}",
-                            TempUnits::Celsius.convert(first_gpu.core_temp, settings.temp_unit())
+                            TempUnits::Celsius.convert(gpu_data[self.selected_gpu_index].core_temp, settings.temp_unit())
                         ))
                         .size(48),
                         span(" \u{00B0}").size(32).font(Font {
@@ -597,21 +608,21 @@ impl MainWindow {
                         row![
                             text(format!(
                                 "L: {}",
-                                settings.format_temp(first_gpu.core_temp_min, 1)
+                                settings.format_temp(gpu_data[self.selected_gpu_index].core_temp_min, 1)
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "Avg: {}",
-                                settings.format_temp(first_gpu.get_core_temp_avg(), 1)
+                                settings.format_temp(gpu_data[self.selected_gpu_index].get_core_temp_avg(), 1)
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "H: {}",
-                                settings.format_temp(first_gpu.core_temp_max, 1)
+                                settings.format_temp(gpu_data[self.selected_gpu_index].core_temp_max, 1)
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
@@ -631,7 +642,7 @@ impl MainWindow {
                         span(format!(
                             "{:.1}",
                             TempUnits::Celsius
-                                .convert(first_gpu.memory_junction_temp, settings.temp_unit())
+                                .convert(gpu_data[self.selected_gpu_index].memory_junction_temp, settings.temp_unit())
                         ))
                         .size(48),
                         span(" \u{00B0}").size(32).font(Font {
@@ -653,21 +664,21 @@ impl MainWindow {
                         row![
                             text(format!(
                                 "L: {}",
-                                settings.format_temp(first_gpu.memory_junction_temp_min, 1)
+                                settings.format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp_min, 1)
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "Avg: {}",
-                                settings.format_temp(first_gpu.get_memory_junction_temp_avg(), 1)
+                                settings.format_temp(gpu_data[self.selected_gpu_index].get_memory_junction_temp_avg(), 1)
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "H: {}",
-                                settings.format_temp(first_gpu.memory_junction_temp_max, 1)
+                                settings.format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp_max, 1)
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
@@ -683,7 +694,7 @@ impl MainWindow {
                 // Right column: Core Clock + Memory Clock + Package Power
                 let right_column = column![
                     text("CORE CLOCK").size(16),
-                    text(format!("{:.0} MHz", first_gpu.core_clock)).size(32),
+                    text(format!("{:.0} MHz", gpu_data[self.selected_gpu_index].core_clock)).size(32),
                     container(rule::horizontal(1)).padding(Padding {
                         top: 8.0,
                         right: 0.0,
@@ -691,7 +702,7 @@ impl MainWindow {
                         left: 0.0,
                     }),
                     text("MEMORY CLOCK").size(16),
-                    text(format!("{:.0} MHz", first_gpu.memory_clock)).size(32),
+                    text(format!("{:.0} MHz", gpu_data[self.selected_gpu_index].memory_clock)).size(32),
                     container(rule::horizontal(1)).padding(Padding {
                         top: 8.0,
                         right: 0.0,
@@ -699,7 +710,7 @@ impl MainWindow {
                         left: 0.0,
                     }),
                     text("PACKAGE POWER").size(16),
-                    text(format!("{:.1} W", first_gpu.power)).size(32)
+                    text(format!("{:.1} W", gpu_data[self.selected_gpu_index].power)).size(32)
                 ]
                 .align_x(Center)
                 .width(160);
@@ -726,11 +737,11 @@ impl MainWindow {
             } else {
                 // Collapsed view - show header with key metrics in one line
                 let collapsed_info = row![
-                    text(settings.format_temp(first_gpu.core_temp, 1)).size(25),
+                    text(settings.format_temp(gpu_data[self.selected_gpu_index].core_temp, 1)).size(25),
                     text("|").size(25),
-                    text(settings.format_temp(first_gpu.memory_junction_temp, 1)).size(25),
+                    text(settings.format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp, 1)).size(25),
                     text("|").size(25),
-                    text(format!("{:.1}%", first_gpu.core_load)).size(25),
+                    text(format!("{:.1}%", gpu_data[self.selected_gpu_index].core_load)).size(25),
                 ]
                 .spacing(10)
                 .align_y(Center)

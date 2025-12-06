@@ -1,3 +1,4 @@
+use crate::collectors::GpuData;
 use crate::utils::csv_logger::{ComponentType, CsvLogger};
 use chrono::DateTime;
 use iced::{Color, Element};
@@ -84,7 +85,7 @@ impl GPUPowerAndUsageGraph {
         self.widget.update(msg);
     }
 
-    pub fn update_data(&mut self, csv_logger: &CsvLogger) {
+    pub fn update_data(&mut self, csv_logger: &CsvLogger, gpu_data: &[GpuData]) {
         let buffer = &csv_logger.graph_data_buffer;
         if buffer.is_empty() {
             return;
@@ -99,82 +100,120 @@ impl GPUPowerAndUsageGraph {
         }
         let start_ts = self.first_timestamp.unwrap_or(0);
 
-        // Extract power series
-        let mut power_series: Vec<[f64; 2]> = buffer
+        // Color palettes for multiple GPUs
+        const POWER_COLORS: [Color; 4] = [
+            Color::from_rgb(1.0, 0.5, 0.0),   // Orange - GPU 0
+            Color::from_rgb(1.0, 0.2, 0.2),   // Red - GPU 1
+            Color::from_rgb(1.0, 0.8, 0.0),   // Yellow - GPU 2
+            Color::from_rgb(1.0, 0.0, 0.5),   // Magenta - GPU 3
+        ];
+
+        const USAGE_COLORS: [Color; 4] = [
+            Color::from_rgb(0.0, 0.5, 1.0),   // Blue - GPU 0
+            Color::from_rgb(0.0, 0.8, 0.8),   // Cyan - GPU 1
+            Color::from_rgb(0.0, 1.0, 0.3),   // Green - GPU 2
+            Color::from_rgb(0.5, 0.0, 1.0),   // Purple - GPU 3
+        ];
+
+        // Collect all GPU entries
+        let gpu_entries: Vec<&_> = buffer
             .iter()
             .filter(|entry| entry.component_type == ComponentType::GPU)
-            .filter_map(|entry| {
-                let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
-                let x_seconds = (ts.timestamp() - start_ts) as f64;
-                Some([x_seconds, entry.power_draw as f64])
-            })
             .collect();
 
-        // Extract usage series
-        let mut usage_series: Vec<[f64; 2]> = buffer
-            .iter()
-            .filter(|entry| entry.component_type == ComponentType::GPU)
-            .filter_map(|entry| {
-                let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
-                let x_seconds = (ts.timestamp() - start_ts) as f64;
-                Some([x_seconds, entry.usage as f64])
-            })
-            .collect();
+        if gpu_entries.is_empty() || gpu_data.is_empty() {
+            return;
+        }
 
-        if !power_series.is_empty() && !usage_series.is_empty() {
-            let current_time = power_series.last().unwrap()[0];
+        // Remove old series
+        self.widget.remove_series("waiting for power/usage data");
+        for gpu in gpu_data.iter() {
+            self.widget.remove_series(&format!("{} Power (W)", gpu.name));
+            self.widget.remove_series(&format!("{} Usage (%)", gpu.name));
+        }
+
+        let mut any_series_added = false;
+        let mut latest_time: f64 = 0.0;
+
+        // Create separate series for each GPU
+        for (gpu_idx, gpu) in gpu_data.iter().enumerate() {
+            // Extract power series for this GPU (match by position in log cycle)
+            let mut power_series: Vec<[f64; 2]> = gpu_entries
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| idx % gpu_data.len() == gpu_idx)
+                .filter_map(|(_, entry)| {
+                    let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
+                    let x_seconds = (ts.timestamp() - start_ts) as f64;
+                    Some([x_seconds, entry.power_draw as f64])
+                })
+                .collect();
+
+            // Extract usage series for this GPU
+            let mut usage_series: Vec<[f64; 2]> = gpu_entries
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| idx % gpu_data.len() == gpu_idx)
+                .filter_map(|(_, entry)| {
+                    let ts = DateTime::parse_from_rfc3339(&entry.timestamp).ok()?;
+                    let x_seconds = (ts.timestamp() - start_ts) as f64;
+                    Some([x_seconds, entry.usage as f64])
+                })
+                .collect();
+
+            if !power_series.is_empty() && !usage_series.is_empty() {
+                any_series_added = true;
+                latest_time = latest_time.max(power_series.last().unwrap()[0]);
+
+                // Workaround: Pad to 33 points to force wgpu buffer update
+                if power_series.len() < 33 {
+                    let last_point = *power_series.last().unwrap();
+                    while power_series.len() < 33 {
+                        power_series.push(last_point);
+                    }
+                }
+
+                if usage_series.len() < 33 {
+                    let last_point = *usage_series.last().unwrap();
+                    while usage_series.len() < 33 {
+                        usage_series.push(last_point);
+                    }
+                }
+
+                // Add power series for this GPU
+                let power = Series::new(
+                    power_series,
+                    MarkerStyle::circle(4.0),
+                    LineStyle::Solid { width: 4.0 },
+                )
+                .with_label(&format!("{} Power (W)", gpu.name))
+                .with_color(POWER_COLORS[gpu_idx % POWER_COLORS.len()]);
+
+                // Add usage series for this GPU
+                let usage = Series::new(
+                    usage_series,
+                    MarkerStyle::circle(4.0),
+                    LineStyle::Solid { width: 4.0 },
+                )
+                .with_label(&format!("{} Usage (%)", gpu.name))
+                .with_color(USAGE_COLORS[gpu_idx % USAGE_COLORS.len()]);
+
+                self.widget.add_series(power).unwrap();
+                self.widget.add_series(usage).unwrap();
+            }
+        }
+
+        // Update scrolling based on latest time
+        if any_series_added {
             let window_size = 60.0;
-            let right_padding = 12.0; // start rolling the graph 12 sec before the end
-            let view_end = current_time + right_padding;
+            let right_padding = 12.0;
+            let view_end = latest_time + right_padding;
 
-            // Scrolling logic
             if view_end > window_size {
                 self.widget.set_x_lim(view_end - window_size, view_end);
             } else {
                 self.widget.set_x_lim(0.0, window_size);
             }
-
-            // Workaround: Pad to 33 points to force wgpu buffer update.
-            // Necessary to display points between 0 and 33
-            if power_series.len() < 33 {
-                let last_point = *power_series.last().unwrap();
-                while power_series.len() < 33 {
-                    power_series.push(last_point);
-                }
-            }
-
-            if usage_series.len() < 33 {
-                let last_point = *usage_series.last().unwrap();
-                while usage_series.len() < 33 {
-                    usage_series.push(last_point);
-                }
-            }
-
-            // Remove old series
-            self.widget.remove_series("waiting for power/usage data");
-            self.widget.remove_series("GPU Power (W)");
-            self.widget.remove_series("GPU Usage (%)");
-
-            // Add power series (orange color)
-            let power = Series::new(
-                power_series,
-                MarkerStyle::circle(4.0),
-                LineStyle::Solid { width: 4.0 },
-            )
-            .with_label("GPU Power (W)")
-            .with_color(Color::from_rgb(1.0, 0.6, 0.0)); // Orange
-
-            // Add usage series (blue/cyan color)
-            let usage = Series::new(
-                usage_series,
-                MarkerStyle::circle(4.0),
-                LineStyle::Solid { width: 4.0 },
-            )
-            .with_label("GPU Usage (%)")
-            .with_color(Color::from_rgb(0.2, 0.6, 1.0)); // Blue
-
-            self.widget.add_series(power).unwrap();
-            self.widget.add_series(usage).unwrap();
         }
     }
 }
