@@ -71,7 +71,13 @@ impl PlotWindow {
         }
     }
 
-    pub fn update(&mut self, csv_logger: &CsvLogger, message: PlotWindowMessage, units: TempUnits, gpu_data: &[crate::collectors::GpuData]) {
+    pub fn update(
+        &mut self,
+        csv_logger: &CsvLogger,
+        message: PlotWindowMessage,
+        units: TempUnits,
+        gpu_data: &[crate::collectors::GpuData],
+    ) {
         match message {
             PlotWindowMessage::TempPlotMessage(msg) => self.temp_graph.update_ui(msg),
             PlotWindowMessage::CPUPowerUsagePlotMessage(msg) => {

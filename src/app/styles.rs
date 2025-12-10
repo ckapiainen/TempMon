@@ -184,6 +184,129 @@ pub fn selected_gpu_button_style(_theme: &Theme, status: button::Status) -> butt
         },
     }
 }
+/// Subtle red-tinted button style for the exit action
+pub(crate) fn exit_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.25, 0.18, 0.18))),
+            border: Border {
+                color: Color::from_rgba(0.5, 0.3, 0.3, 0.4),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.9, 0.75, 0.75),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 3.0,
+            },
+            snap: false,
+        },
+        button::Status::Hovered => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.3, 0.2, 0.2))),
+            border: Border {
+                color: Color::from_rgba(0.6, 0.35, 0.35, 0.6),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(1.0, 0.85, 0.85),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.4),
+                offset: Vector::new(0.0, 2.0),
+                blur_radius: 6.0,
+            },
+            snap: false,
+        },
+        button::Status::Pressed => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.2, 0.15, 0.15))),
+            border: Border {
+                color: Color::from_rgba(0.45, 0.25, 0.25, 0.5),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.8, 0.65, 0.65),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 2.0,
+            },
+            snap: false,
+        },
+        button::Status::Disabled => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
+            border: Border {
+                color: Color::from_rgba(0.2, 0.2, 0.2, 0.3),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.4, 0.4, 0.4),
+            shadow: Shadow::default(),
+            snap: false,
+        },
+    }
+}
+
+/// Subtle blue-tinted button style for the minimize action
+pub(crate) fn minimize_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.18, 0.22, 0.26))),
+            border: Border {
+                color: Color::from_rgba(0.3, 0.4, 0.5, 0.4),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.75, 0.85, 0.95),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 3.0,
+            },
+            snap: false,
+        },
+        button::Status::Hovered => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.2, 0.26, 0.32))),
+            border: Border {
+                color: Color::from_rgba(0.35, 0.5, 0.65, 0.6),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.85, 0.92, 1.0),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.4),
+                offset: Vector::new(0.0, 2.0),
+                blur_radius: 6.0,
+            },
+            snap: false,
+        },
+        button::Status::Pressed => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.15, 0.18, 0.22))),
+            border: Border {
+                color: Color::from_rgba(0.25, 0.35, 0.45, 0.5),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.65, 0.75, 0.85),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 2.0,
+            },
+            snap: false,
+        },
+        button::Status::Disabled => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
+            border: Border {
+                color: Color::from_rgba(0.2, 0.2, 0.2, 0.3),
+                width: 1.5,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.4, 0.4, 0.4),
+            shadow: Shadow::default(),
+            snap: false,
+        },
+    }
+}
 
 pub fn card_container_style(_theme: &Theme) -> container::Style {
     container::Style {

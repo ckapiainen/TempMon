@@ -106,7 +106,7 @@ impl Default for Settings {
 
 // TODO: MORE settings.
 // TODO: start with windows and minimized
-// Tray icon:
+// TODO: Tray icon:
 // "Show temperature" checkbox
 // "Show CPU usage" checkbox
 // "Show power draw" checkbox

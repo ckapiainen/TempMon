@@ -1,11 +1,12 @@
+use crate::app::main_window::MainWindowMessage;
 use crate::app::plot_window::PlotWindowMessage;
 use crate::app::settings::{Settings, TempUnits};
-use crate::app::{layout, main_window, plot_window};
+use crate::app::{exit_confirmation_modal, layout, main_window, plot_window};
 use crate::collectors::cpu_data::CpuData;
 use crate::collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
 use crate::collectors::{CpuCoreLHMQuery, GpuData, GpuLHMQuery};
+use crate::connect_to_lhm_service;
 use crate::utils::csv_logger::{ComponentType, CsvLogger, HardwareLogEntry};
-use crate::{app, connect_to_lhm_service};
 use colored::Colorize;
 use iced::widget::container;
 use iced::{window, Element, Subscription, Task, Theme};
@@ -15,12 +16,18 @@ use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIconBuilder};
 
 #[derive(Clone)]
-pub(crate) enum TempMonMessage {
+pub enum TempMonMessage {
+    // Window Lifecycle
     WindowOpened(window::Id),
     WindowClosed(window::Id),
-    TrayEvent(MenuId),
+    // Navigation
+    MainButtonPressed,
+    PlotterButtonPressed,
     ShowSettingsModal,
     HideSettingsModal,
+    // System Tray
+    TrayEvent(MenuId),
+    // Settings Modal
     ThemeChanged(Theme),
     ToggleStartWithWindows(bool),
     ToggleStartMinimized(bool),
@@ -29,14 +36,19 @@ pub(crate) enum TempMonMessage {
     TempHighThresholdChanged(String),
     UpdateIntervalChanged(f32),
     SaveSettings,
-    MainButtonPressed,
-    PlotterButtonPressed,
+    // Close/exit modal
+    CloseRequestReceived(window::Id),
+    CancelExit,
+    ConfirmMinimize,
+    ConfirmExit,
+    // Hardware Data Updates
     UpdateHardwareData,
     CpuValuesUpdated((f32, f32, Vec<CpuCoreLHMQuery>)),
     GpuValuesUpdated(Vec<GpuLHMQuery>),
-    MainWindow(main_window::MainWindowMessage),
-    PlotWindow(PlotWindowMessage),
     HardwareMonitorConnected(Option<lhm_client::LHMClientHandle>, Vec<GpuData>),
+    // Child Component Messages
+    MainWindow(MainWindowMessage),
+    PlotWindow(PlotWindowMessage),
 }
 #[derive(Clone, Debug)]
 enum Screen {
@@ -52,6 +64,7 @@ pub struct TempMon {
     system: System,
     current_screen: Screen,
     show_settings_modal: bool,
+    show_exit_modal: bool,
     current_theme: Theme,
     settings: Settings,
     main_window: main_window::MainWindow,
@@ -105,6 +118,7 @@ impl TempMon {
             resizable: true,
             decorations: true,
             level: window::Level::Normal,
+            exit_on_close_request: false,
             ..Default::default()
         };
 
@@ -177,6 +191,7 @@ impl TempMon {
                 system,
                 current_screen: Screen::Main,
                 show_settings_modal: false,
+                show_exit_modal: false,
                 current_theme,
                 settings,
                 main_window: main_window::MainWindow::new(),
@@ -228,13 +243,34 @@ impl TempMon {
             TempMonMessage::WindowClosed(_id) => {
                 dbg!("Window closed, daemon still running...");
                 self.window_id = None;
-
                 // Flush any pending CSV logs
                 if let Err(e) = self.csv_logger.flush_buffer() {
                     eprintln!("Failed to flush CSV on window close: {}", e);
                 }
-
                 Task::none()
+            }
+            TempMonMessage::CloseRequestReceived(id) => {
+                dbg!("Close request received for window {}", id);
+                self.show_exit_modal = true;
+                Task::none()
+            }
+            TempMonMessage::CancelExit => {
+                self.show_exit_modal = false;
+                Task::none()
+            }
+            TempMonMessage::ConfirmMinimize => {
+                self.show_exit_modal = false;
+                if let Some(id) = self.window_id.take() {
+                    return window::close(id);
+                }
+                Task::none()
+            }
+            TempMonMessage::ConfirmExit => {
+                // Flush logs and kill process
+                if let Err(e) = self.csv_logger.flush_buffer() {
+                    eprintln!("Failed to flush CSV: {}", e);
+                }
+                std::process::exit(0);
             }
             TempMonMessage::TrayEvent(menu_id) => {
                 if menu_id == self.show_menu_id {
@@ -245,6 +281,7 @@ impl TempMon {
                             position: window::Position::Centered,
                             min_size: Some(iced::Size::new(500.0, 400.0)),
                             icon: window::icon::from_file("assets/logo.ico").ok(),
+                            exit_on_close_request: false,
                             ..Default::default()
                         };
                         let (_, open_task) = window::open(window_settings);
@@ -488,6 +525,8 @@ impl TempMon {
         };
         if self.show_settings_modal {
             self.settings.view(layout::with_header(page))
+        } else if self.show_exit_modal {
+            exit_confirmation_modal::exit_confirmation_modal(layout::with_header(page))
         } else {
             layout::with_header(page)
         }
@@ -496,7 +535,7 @@ impl TempMon {
     pub fn subscription(&self) -> Subscription<TempMonMessage> {
         // https://docs.iced.rs/iced/#passive-subscriptions
         Subscription::batch(vec![
-            window::close_events().map(TempMonMessage::WindowClosed),
+            window::close_requests().map(TempMonMessage::CloseRequestReceived),
             iced::time::every(Duration::from_secs_f32(self.settings.data_update_interval))
                 .map(|_| TempMonMessage::UpdateHardwareData),
             tray_events_subscription(),

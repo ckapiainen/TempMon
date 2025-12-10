@@ -4,8 +4,7 @@ use crate::assets;
 use crate::collectors::cpu_data::CpuData;
 use crate::collectors::GpuData;
 use iced::widget::{
-    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text,
-    Button, Row,
+    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text, Row,
 };
 use iced::{font, never, window, Center, Color, Element, Fill, Font, Padding, Subscription, Theme};
 use lilt::{Animated, Easing};
@@ -559,14 +558,20 @@ impl MainWindow {
                 let memory_used_gb = gpu_data[self.selected_gpu_index].memory_used / 1024.0;
                 let memory_total_gb = gpu_data[self.selected_gpu_index].memory_total / 1024.0;
                 let memory_percentage = if gpu_data[self.selected_gpu_index].memory_total > 0.0 {
-                    (gpu_data[self.selected_gpu_index].memory_used / gpu_data[self.selected_gpu_index].memory_total) * 100.0
+                    (gpu_data[self.selected_gpu_index].memory_used
+                        / gpu_data[self.selected_gpu_index].memory_total)
+                        * 100.0
                 } else {
                     0.0
                 };
 
                 let left_column = column![
                     text("CORE LOAD").size(18),
-                    text(format!("{:.1}%", gpu_data[self.selected_gpu_index].core_load)).size(48),
+                    text(format!(
+                        "{:.1}%",
+                        gpu_data[self.selected_gpu_index].core_load
+                    ))
+                    .size(48),
                     container(rule::horizontal(1)).padding(Padding {
                         top: 8.0,
                         right: 0.0,
@@ -586,7 +591,10 @@ impl MainWindow {
                     rich_text![
                         span(format!(
                             "{:.1}",
-                            TempUnits::Celsius.convert(gpu_data[self.selected_gpu_index].core_temp, settings.temp_unit())
+                            TempUnits::Celsius.convert(
+                                gpu_data[self.selected_gpu_index].core_temp,
+                                settings.temp_unit()
+                            )
                         ))
                         .size(48),
                         span(" \u{00B0}").size(32).font(Font {
@@ -608,21 +616,30 @@ impl MainWindow {
                         row![
                             text(format!(
                                 "L: {}",
-                                settings.format_temp(gpu_data[self.selected_gpu_index].core_temp_min, 1)
+                                settings.format_temp(
+                                    gpu_data[self.selected_gpu_index].core_temp_min,
+                                    1
+                                )
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "Avg: {}",
-                                settings.format_temp(gpu_data[self.selected_gpu_index].get_core_temp_avg(), 1)
+                                settings.format_temp(
+                                    gpu_data[self.selected_gpu_index].get_core_temp_avg(),
+                                    1
+                                )
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "H: {}",
-                                settings.format_temp(gpu_data[self.selected_gpu_index].core_temp_max, 1)
+                                settings.format_temp(
+                                    gpu_data[self.selected_gpu_index].core_temp_max,
+                                    1
+                                )
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
@@ -641,8 +658,10 @@ impl MainWindow {
                     rich_text![
                         span(format!(
                             "{:.1}",
-                            TempUnits::Celsius
-                                .convert(gpu_data[self.selected_gpu_index].memory_junction_temp, settings.temp_unit())
+                            TempUnits::Celsius.convert(
+                                gpu_data[self.selected_gpu_index].memory_junction_temp,
+                                settings.temp_unit()
+                            )
                         ))
                         .size(48),
                         span(" \u{00B0}").size(32).font(Font {
@@ -664,21 +683,31 @@ impl MainWindow {
                         row![
                             text(format!(
                                 "L: {}",
-                                settings.format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp_min, 1)
+                                settings.format_temp(
+                                    gpu_data[self.selected_gpu_index].memory_junction_temp_min,
+                                    1
+                                )
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "Avg: {}",
-                                settings.format_temp(gpu_data[self.selected_gpu_index].get_memory_junction_temp_avg(), 1)
+                                settings.format_temp(
+                                    gpu_data[self.selected_gpu_index]
+                                        .get_memory_junction_temp_avg(),
+                                    1
+                                )
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                             text(format!(
                                 "H: {}",
-                                settings.format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp_max, 1)
+                                settings.format_temp(
+                                    gpu_data[self.selected_gpu_index].memory_junction_temp_max,
+                                    1
+                                )
                             ))
                             .size(16)
                             .color(Color::from_rgb(0.7, 0.7, 0.7)),
@@ -694,7 +723,11 @@ impl MainWindow {
                 // Right column: Core Clock + Memory Clock + Package Power
                 let right_column = column![
                     text("CORE CLOCK").size(16),
-                    text(format!("{:.0} MHz", gpu_data[self.selected_gpu_index].core_clock)).size(32),
+                    text(format!(
+                        "{:.0} MHz",
+                        gpu_data[self.selected_gpu_index].core_clock
+                    ))
+                    .size(32),
                     container(rule::horizontal(1)).padding(Padding {
                         top: 8.0,
                         right: 0.0,
@@ -702,7 +735,11 @@ impl MainWindow {
                         left: 0.0,
                     }),
                     text("MEMORY CLOCK").size(16),
-                    text(format!("{:.0} MHz", gpu_data[self.selected_gpu_index].memory_clock)).size(32),
+                    text(format!(
+                        "{:.0} MHz",
+                        gpu_data[self.selected_gpu_index].memory_clock
+                    ))
+                    .size(32),
                     container(rule::horizontal(1)).padding(Padding {
                         top: 8.0,
                         right: 0.0,
@@ -737,11 +774,20 @@ impl MainWindow {
             } else {
                 // Collapsed view - show header with key metrics in one line
                 let collapsed_info = row![
-                    text(settings.format_temp(gpu_data[self.selected_gpu_index].core_temp, 1)).size(25),
+                    text(settings.format_temp(gpu_data[self.selected_gpu_index].core_temp, 1))
+                        .size(25),
                     text("|").size(25),
-                    text(settings.format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp, 1)).size(25),
+                    text(
+                        settings
+                            .format_temp(gpu_data[self.selected_gpu_index].memory_junction_temp, 1)
+                    )
+                    .size(25),
                     text("|").size(25),
-                    text(format!("{:.1}%", gpu_data[self.selected_gpu_index].core_load)).size(25),
+                    text(format!(
+                        "{:.1}%",
+                        gpu_data[self.selected_gpu_index].core_load
+                    ))
+                    .size(25),
                 ]
                 .spacing(10)
                 .align_y(Center)

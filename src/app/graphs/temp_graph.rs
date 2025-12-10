@@ -137,10 +137,10 @@ impl TemperatureGraph {
 
         // Color palette for multiple GPUs
         const GPU_TEMP_COLORS: [Color; 4] = [
-            Color::from_rgb(1.0, 0.5, 0.0),   // Orange - GPU 0
-            Color::from_rgb(1.0, 0.2, 0.2),   // Red - GPU 1
-            Color::from_rgb(1.0, 0.8, 0.0),   // Yellow - GPU 2
-            Color::from_rgb(1.0, 0.0, 0.5),   // Magenta - GPU 3
+            Color::from_rgb(1.0, 0.5, 0.0), // Orange - GPU 0
+            Color::from_rgb(1.0, 0.2, 0.2), // Red - GPU 1
+            Color::from_rgb(1.0, 0.8, 0.0), // Yellow - GPU 2
+            Color::from_rgb(1.0, 0.0, 0.5), // Magenta - GPU 3
         ];
 
         // Collect all GPU temp entries
