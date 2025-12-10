@@ -399,25 +399,41 @@ impl TempMon {
                     let gpu_brands: Vec<_> = self.gpu_data.iter().map(|gpu| gpu.brand).collect();
 
                     Task::batch(vec![
-                        // Query CPU data
+                        // CPU Task: Inline the update and query, handle error at the end
                         Task::future(async move {
-                            client_cpu
-                                .update_all()
-                                .await
-                                .expect("Error updating hardware");
-                            let temps = lhm_cpu_queries(&client_cpu).await;
-                            TempMonMessage::CpuValuesUpdated(temps)
-                        }),
-                        // Query GPU data
-                        Task::future(async move {
-                            let mut gpu_queries = Vec::new();
-
-                            for brand in gpu_brands {
-                                let query = lhm_gpu_queries(brand, &client_gpu).await;
-                                gpu_queries.push(query);
+                            // Wrap multiple async steps in an inner block to chain errors with '?'
+                            let result = async {
+                                client_cpu.update_all().await?;
+                                lhm_cpu_queries(&client_cpu).await
                             }
+                            .await;
 
-                            TempMonMessage::GpuValuesUpdated(gpu_queries)
+                            // Map success to Message, or handle error with unwrap_or_else
+                            result
+                                .map(TempMonMessage::CpuValuesUpdated)
+                                .unwrap_or_else(|e| {
+                                    eprintln!("Failed to query CPU: {}", e);
+                                    TempMonMessage::CpuValuesUpdated((0.0, 0.0, Vec::new()))
+                                })
+                        }),
+                        // GPU Task: Inline the iteration
+                        Task::future(async move {
+                            let result = async {
+                                let mut queries = Vec::new();
+                                for brand in gpu_brands {
+                                    // Using '?' here propagates the error immediately, matching original behavior
+                                    queries.push(lhm_gpu_queries(brand, &client_gpu).await?);
+                                }
+                                Ok(queries)
+                            }
+                            .await;
+
+                            result
+                                .map(TempMonMessage::GpuValuesUpdated)
+                                .unwrap_or_else(|e: anyhow::Error| {
+                                    eprintln!("Failed to query GPU: {}", e);
+                                    TempMonMessage::GpuValuesUpdated(Vec::new())
+                                })
                         }),
                     ])
                 } else {

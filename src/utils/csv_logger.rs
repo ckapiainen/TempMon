@@ -106,7 +106,7 @@ impl CsvLogger {
         }
 
         // Add to graph data (last 1000 for now)
-        self.graph_data_buffer.append(&mut entries.clone());
+        self.graph_data_buffer.extend_from_slice(&entries);
         if self.graph_data_buffer.len() > 1000 {
             self.graph_data_buffer
                 .drain(0..self.graph_data_buffer.len() - 1000);
