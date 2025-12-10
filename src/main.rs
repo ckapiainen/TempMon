@@ -2,6 +2,8 @@
 mod app;
 mod assets;
 mod collectors;
+mod constants;
+mod types;
 mod utils;
 
 use app::tempmon::TempMon;

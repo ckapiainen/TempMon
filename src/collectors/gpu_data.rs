@@ -1,5 +1,6 @@
 use crate::collectors::GpuLHMQuery;
 use lhm_client::HardwareType;
+use crate::constants;
 
 #[derive(Debug, Clone)]
 pub struct GpuData {
@@ -72,10 +73,10 @@ impl GpuData {
             .push(self.memory_junction_temp);
 
         // Avg max vec len 30
-        if self.core_temp_avg.len() > 30 {
+        if self.core_temp_avg.len() > constants::data::TEMP_AVG_WINDOW_SIZE {
             self.core_temp_avg.remove(0);
         }
-        if self.memory_junction_temp_avg.len() > 30 {
+        if self.memory_junction_temp_avg.len() > constants::data::TEMP_AVG_WINDOW_SIZE {
             self.memory_junction_temp_avg.remove(0);
         }
     }

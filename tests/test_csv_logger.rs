@@ -1,9 +1,11 @@
 #[path = "../src/utils/csv_logger.rs"]
 mod csv_logger;
+#[path = "../src/types/hardware.rs"]
+mod hardware;
 #[cfg(test)]
 mod tests {
-    use crate::csv_logger::{ComponentType, CsvLogger, HardwareLogEntry};
-    use chrono::Local;
+    use crate::csv_logger::{CsvLogger};
+use crate::hardware::{ComponentType, HardwareLogEntry};    use chrono::Local;
     use tempfile::tempdir;
     #[test]
     #[ignore] // TODO: Fix path issues in CI

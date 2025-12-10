@@ -1,5 +1,6 @@
 use crate::collectors::GpuData;
-use crate::utils::csv_logger::{ComponentType, CsvLogger};
+use crate::types::ComponentType;
+use crate::utils::csv_logger::CsvLogger;
 use chrono::DateTime;
 use iced::{Color, Element};
 use iced_plot::{

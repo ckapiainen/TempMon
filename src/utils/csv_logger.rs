@@ -1,28 +1,13 @@
 use anyhow::Result;
 use chrono::prelude::*;
 use csv::{Error, Writer, WriterBuilder};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ComponentType {
-    CPU,
-    GPU,
-    RAM,
-    SSD,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HardwareLogEntry {
-    pub timestamp: String,
-    pub component_type: ComponentType,
-    pub temperature_unit: String,
-    pub temperature: f32,
-    pub usage: f32,
-    pub power_draw: f32,
-}
+use crate::constants::logging::*;
+use crate::types::{ HardwareLogEntry};
 #[derive(Debug)]
 pub struct CsvLogger {
     wtr: Writer<File>,
@@ -68,7 +53,11 @@ impl CsvLogger {
             path,
             timestamp: Local::now(),
             runtime_start: SystemTime::now(),
-            write_buffer_size: if cfg!(debug_assertions) { 1 } else { 50 },
+            write_buffer_size: if cfg!(debug_assertions) {
+                DEV_BUFFER_SIZE
+            } else {
+                PROD_BUFFER_SIZE
+            },
             write_buffer: vec![],
             graph_data_buffer: vec![],
         })
@@ -105,11 +94,11 @@ impl CsvLogger {
             self.wtr = Self::open_csv_writer(&self.path)?;
         }
 
-        // Add to graph data (last 1000 for now)
+        // Add to graph data (keep last N entries)
         self.graph_data_buffer.extend_from_slice(&entries);
-        if self.graph_data_buffer.len() > 1000 {
+        if self.graph_data_buffer.len() > GRAPH_DATA_BUFFER_MAX {
             self.graph_data_buffer
-                .drain(0..self.graph_data_buffer.len() - 1000);
+                .drain(0..self.graph_data_buffer.len() - GRAPH_DATA_BUFFER_MAX);
         }
 
         // Add to write buffer

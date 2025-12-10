@@ -1,12 +1,13 @@
 use crate::app::main_window::MainWindowMessage;
 use crate::app::plot_window::PlotWindowMessage;
-use crate::app::settings::{Settings, TempUnits};
+use crate::app::settings::Settings;
 use crate::app::{exit_confirmation_modal, layout, main_window, plot_window};
 use crate::collectors::cpu_data::CpuData;
 use crate::collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu_queries};
 use crate::collectors::{CpuCoreLHMQuery, GpuData, GpuLHMQuery};
 use crate::connect_to_lhm_service;
-use crate::utils::csv_logger::{ComponentType, CsvLogger, HardwareLogEntry};
+use crate::types::{ComponentType, HardwareLogEntry, TempUnits};
+use crate::utils::csv_logger::CsvLogger;
 use colored::Colorize;
 use iced::widget::container;
 use iced::{window, Element, Subscription, Task, Theme};

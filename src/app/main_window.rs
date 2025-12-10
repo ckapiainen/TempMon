@@ -1,30 +1,16 @@
-use crate::app::settings::{Settings, TempUnits};
+use crate::app::settings::Settings;
 use crate::app::styles;
 use crate::assets;
 use crate::collectors::cpu_data::CpuData;
 use crate::collectors::GpuData;
+use crate::constants::animation::*;
+use crate::types::{CpuBarChartState, TempUnits};
 use iced::widget::{
-    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text,
-    Button, Row,
+    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text, Row,
 };
 use iced::{font, never, window, Center, Color, Element, Fill, Font, Padding, Subscription, Theme};
 use lilt::{Animated, Easing};
-use std::cmp::PartialEq;
 use std::time::Instant;
-
-// Card animation height constants
-const GENERAL_CARD_COLLAPSED_HEIGHT: f32 = 50.0;
-const GENERAL_CARD_EXPANDED_HEIGHT: f32 = 260.0;
-const CORES_CARD_COLLAPSED_HEIGHT: f32 = 50.0;
-const CORES_CARD_EXPANDED_HEIGHT: f32 = 280.0;
-const GPU_CARD_COLLAPSED_HEIGHT: f32 = 50.0;
-const GPU_CARD_EXPANDED_HEIGHT: f32 = 350.0;
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum CpuBarChartState {
-    Usage,
-    Power,
-}
 
 #[derive(Debug, Clone)]
 pub enum MainWindowMessage {
@@ -131,7 +117,7 @@ impl MainWindow {
         let core_power_draw_vector = &cpu_data.core_power_draw;
 
         /*
-         ========== General CPU info card =============
+         ========== CPU info card =============
         */
 
         // Animate height between collapsed and expanded
@@ -139,12 +125,12 @@ impl MainWindow {
         let animation_factor = self
             .cpu_card_expanded
             .animate(std::convert::identity, self.now);
-        let general_card_height = GENERAL_CARD_COLLAPSED_HEIGHT
-            + (animation_factor * (GENERAL_CARD_EXPANDED_HEIGHT - GENERAL_CARD_COLLAPSED_HEIGHT));
+        let cpu_card_height = CPU_CARD_COLLAPSED_HEIGHT
+            + (animation_factor * (CPU_CARD_EXPANDED_HEIGHT - CPU_CARD_COLLAPSED_HEIGHT));
         let is_cpu_card_expanded = self.cpu_card_expanded.value > 0.5;
 
         // Clickable header
-        let general_header_button = button(
+        let cpu_header_button = button(
             row![
                 svg(svg::Handle::from_memory(assets::CPU_ICON))
                     .width(25)
@@ -169,7 +155,7 @@ impl MainWindow {
         .width(Fill)
         .style(styles::header_button_style);
 
-        let general_content = if is_cpu_card_expanded {
+        let cpu_card_content = if is_cpu_card_expanded {
             // Expanded view - show full stats
             let total_load = column![
                 text("LOAD").size(20),
@@ -281,7 +267,7 @@ impl MainWindow {
                 left: 0.0,
             });
 
-            column![general_header_button, rule::horizontal(1), stats_row]
+            column![cpu_header_button, rule::horizontal(1), stats_row]
                 .align_x(Center)
                 .spacing(15)
         } else {
@@ -300,14 +286,14 @@ impl MainWindow {
                 left: 10.0,
             });
 
-            column![row![general_header_button, collapsed_info,]
+            column![row![cpu_header_button, collapsed_info,]
                 .width(Fill)
                 .align_y(Center)]
         };
 
-        let general_cpu_info_card = container(general_content)
+        let cpu_info_card = container(cpu_card_content)
             .width(Fill)
-            .height(general_card_height)
+            .height(cpu_card_height)
             .align_x(Center)
             .style(styles::card_container_style)
             .clip(true);
@@ -785,10 +771,10 @@ impl MainWindow {
                 .clip(true);
 
             // Include GPU card in layout
-            column![general_cpu_info_card, cores_card, gpu_card].spacing(20)
+            column![cpu_info_card, cores_card, gpu_card].spacing(20)
         } else {
             // No GPU
-            column![general_cpu_info_card, cores_card].spacing(20)
+            column![cpu_info_card, cores_card].spacing(20)
         };
 
         scrollable(container(all_cards).padding(20).width(Fill)).into()

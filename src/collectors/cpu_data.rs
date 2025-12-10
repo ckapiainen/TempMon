@@ -1,6 +1,7 @@
 use super::CpuCoreLHMQuery;
 use crate::collectors::cpu_frequency_collector::FrequencyMonitor;
 use sysinfo::System;
+use crate::constants;
 
 //TODO: max vec size for averages
 pub struct CpuData {
@@ -74,7 +75,7 @@ impl CpuData {
         self.temp_max = self.temp_max.max(self.temp);
         self.temp_min = self.temp_min.min(self.temp);
         self.temp_avg.push(self.temp);
-        if self.temp_avg.len() > 30 {
+        if self.temp_avg.len() > constants::data::TEMP_AVG_WINDOW_SIZE {
             self.temp_avg.remove(0);
         }
     }
@@ -87,7 +88,7 @@ impl CpuData {
         self.usage_avg.push(usage_update);
         self.usage_max = self.usage_max.max(usage_update);
         self.usage_min = self.usage_min.min(usage_update);
-        if self.usage_avg.len() > 30 {
+        if self.usage_avg.len() > constants::data::USAGE_AVG_WINDOW_SIZE {
             self.usage_avg.remove(0);
         }
 
