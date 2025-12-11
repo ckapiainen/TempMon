@@ -1,3 +1,4 @@
+mod cards;
 mod exit_confirmation_modal;
 mod graphs;
 pub mod layout;
@@ -6,4 +7,4 @@ pub mod modal;
 pub mod plot_window;
 pub mod settings;
 pub mod styles;
-pub(crate) mod tempmon;
+pub mod tempmon;
