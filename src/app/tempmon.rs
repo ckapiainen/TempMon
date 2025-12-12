@@ -7,14 +7,13 @@ use crate::collectors::lhm_collector::{initialize_gpus, lhm_cpu_queries, lhm_gpu
 use crate::collectors::{CpuCoreLHMQuery, GpuData, GpuLHMQuery};
 use crate::connect_to_lhm_service;
 use crate::types::{ComponentType, HardwareLogEntry, TempUnits};
-use crate::utils::csv_logger::CsvLogger;
+use crate::utils::{csv_logger::CsvLogger, tray};
 use colored::Colorize;
 use iced::widget::container;
 use iced::{window, Element, Subscription, Task, Theme};
 use std::time::Duration;
 use sysinfo::System;
-use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
-use tray_icon::{Icon, TrayIconBuilder};
+use tray_icon::menu::{MenuEvent, MenuId};
 
 #[derive(Clone)]
 pub enum TempMonMessage {
@@ -111,6 +110,7 @@ impl TempMon {
     }
 
     pub fn new() -> (Self, Task<TempMonMessage>) {
+        // Window and load program settings
         let window_settings = window::Settings {
             size: iced::Size::new(800.0, 700.0),
             position: window::Position::Centered,
@@ -122,45 +122,19 @@ impl TempMon {
             exit_on_close_request: false,
             ..Default::default()
         };
-
-        let (_, open_task) = window::open(window_settings);
-
-        // Load tray icon from bytes
-        const ICON_DATA: &[u8] = include_bytes!("../../assets/logo.ico");
-        let image = image::load_from_memory(ICON_DATA)
-            .expect("Failed to load icon from memory")
-            .into_rgba8();
-        let (width, height) = image.dimensions();
-        let rgba = image.into_raw();
-        let icon = Icon::from_rgba(rgba, width, height).expect("Failed to create icon");
-        // Create tray menu
-        let menu = Menu::new();
-        let show_item = MenuItem::new("Show Window", true, None);
-        let quit_item = MenuItem::new("Quit", true, None);
-        let separator = PredefinedMenuItem::separator();
-
-        // Store menu IDs for event handling
-        let show_id = show_item.id().clone();
-        let quit_id = quit_item.id().clone();
-
-        menu.append_items(&[&show_item, &separator, &quit_item])
-            .expect("Failed to append menu items");
-
-        // Build tray icon
-        let tray_icon = TrayIconBuilder::new()
-            .with_tooltip("TempMon")
-            .with_icon(icon)
-            .with_menu(Box::new(menu))
-            .build()
-            .expect("Failed to create tray icon");
-
+        let settings = Settings::load().expect("Error loading settings");
+        let current_theme = settings.theme.clone();
+        let csv_logger = CsvLogger::new(None).expect("Failed to create CSV logger");
+        let (_, open_task) = if settings.start_minimized {
+            (window::Id::unique(), Task::none())
+        } else {
+            window::open(window_settings)
+        };
+        let (show_id, quit_id, tray_icon) = tray::init_icon(); // tray icon
         let mut system = System::new_all();
         system.refresh_cpu_all();
         let cpu_data = CpuData::new(&system);
         let hw_monitor_service = None;
-        let settings = Settings::load().expect("Error loading settings");
-        let current_theme = settings.theme.clone();
-        let csv_logger = CsvLogger::new(None).expect("Failed to create CSV logger");
         let plot_window = plot_window::PlotWindow::new(
             settings
                 .selected_temp_units
@@ -429,12 +403,12 @@ impl TempMon {
                             }
                             .await;
 
-                            result
-                                .map(TempMonMessage::GpuValuesUpdated)
-                                .unwrap_or_else(|e: anyhow::Error| {
+                            result.map(TempMonMessage::GpuValuesUpdated).unwrap_or_else(
+                                |e: anyhow::Error| {
                                     eprintln!("Failed to query GPU: {}", e);
                                     TempMonMessage::GpuValuesUpdated(Vec::new())
-                                })
+                                },
+                            )
                         }),
                     ])
                 } else {

@@ -29,7 +29,6 @@ pub struct MainWindow {
     now: Instant,
 }
 
-//TODO: handle multi gpu setup
 //TODO: Check for CPU cores bar chart overflow: scrollable container?
 //TODO: Responsive layout: max size for cards and move them according to screen size (switch between column/row or some better way with iced api)
 //TODO: Tiling window management for cards? https://docs.iced.rs/iced_widget/pane_grid/struct.PaneGrid.html

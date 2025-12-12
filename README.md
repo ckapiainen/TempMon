@@ -67,6 +67,5 @@ cargo run --release
 
 ## Requirements
 
-- Windows 10/11
+- Windows 10/11 with .NET Framework 4.7.2+
 - Latest ver. PawnIO driver https://github.com/namazso/PawnIO
-- Rust 1.70+
