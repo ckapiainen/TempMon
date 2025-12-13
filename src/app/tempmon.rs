@@ -12,7 +12,7 @@ use colored::Colorize;
 use iced::widget::container;
 use iced::{window, Element, Subscription, Task, Theme};
 use std::time::Duration;
-use sysinfo::System;
+use sysinfo::{ProcessRefreshKind, RefreshKind, System};
 use tray_icon::menu::{MenuEvent, MenuId};
 
 #[derive(Clone)]
@@ -133,6 +133,15 @@ impl TempMon {
         let (show_id, quit_id, tray_icon) = tray::init_icon(); // tray icon
         let mut system = System::new_all();
         system.refresh_cpu_all();
+        system.refresh_specifics(
+            RefreshKind::nothing().with_processes(
+                ProcessRefreshKind::everything()
+                    .without_cwd()
+                    .without_environ()
+                    .without_user()
+                    .without_exe(),
+            ),
+        );
         let cpu_data = CpuData::new(&system);
         let hw_monitor_service = None;
         let plot_window = plot_window::PlotWindow::new(
@@ -367,7 +376,15 @@ impl TempMon {
             }
             TempMonMessage::UpdateHardwareData => {
                 self.cpu_data.update(&mut self.system);
-
+                self.system.refresh_specifics(
+                    RefreshKind::nothing().with_processes(
+                        ProcessRefreshKind::everything()
+                            .without_cwd()
+                            .without_environ()
+                            .without_user()
+                            .without_exe(),
+                    ),
+                );
                 if let Some(client) = &self.hw_monitor_service {
                     let client_cpu = client.clone();
                     let client_gpu = client.clone();
@@ -512,7 +529,10 @@ impl TempMon {
                 .main_window
                 .view(&self.cpu_data, &self.gpu_data, &self.settings)
                 .map(TempMonMessage::MainWindow),
-            Screen::Plotter => self.plot_window.view().map(TempMonMessage::PlotWindow),
+            Screen::Plotter => self
+                .plot_window
+                .view(self.system.processes())
+                .map(TempMonMessage::PlotWindow),
         };
         if self.show_settings_modal {
             self.settings.view(layout::with_header(page))

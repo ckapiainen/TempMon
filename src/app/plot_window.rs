@@ -2,22 +2,25 @@ use crate::app::graphs::cpu_power_usage::CPUPowerAndUsageGraph;
 use crate::app::graphs::gpu_power_usage::GPUPowerAndUsageGraph;
 use crate::app::graphs::temp_graph::TemperatureGraph;
 use crate::app::styles;
+use crate::app::styles::compact_icon_button_style;
 use crate::constants::sidebar::*;
 use crate::types::TempUnits;
 use crate::utils::csv_logger::CsvLogger;
-use iced::widget::{button, column, combo_box, container, row, rule, scrollable, svg, text};
-use iced::{window, Alignment, Color, Element, Length, Subscription};
+use iced::widget::{
+    button, column, combo_box, container, row, rule, scrollable, svg, text, Column,
+};
+use iced::{window, Alignment, Center, Color, Element, Length, Subscription, Theme};
 use lilt::{Animated, Easing};
+use std::collections::HashMap;
 use std::time::Instant;
+use sysinfo::{Pid, Process};
 
 pub struct PlotWindow {
     temp_graph: TemperatureGraph,
     cpu_power_usage_graph: CPUPowerAndUsageGraph,
     gpu_power_usage_graph: GPUPowerAndUsageGraph,
     // Process monitoring
-    available_processes: Vec<String>,
     selected_processes: Vec<String>,
-    process_combo_box: combo_box::State<String>,
     // Process sidebar state
     sidebar_expanded: Animated<f32, Instant>,
     now: Instant,
@@ -61,8 +64,6 @@ impl PlotWindow {
             temp_graph: TemperatureGraph::new(units),
             cpu_power_usage_graph: CPUPowerAndUsageGraph::new(),
             gpu_power_usage_graph: GPUPowerAndUsageGraph::new(),
-            process_combo_box: combo_box::State::new(available_processes.clone()),
-            available_processes,
             selected_processes: vec![],
             sidebar_expanded: Animated::new(0.0).duration(300.0).easing(Easing::EaseInOut),
             now: Instant::now(),
@@ -105,11 +106,9 @@ impl PlotWindow {
                 if !self.selected_processes.contains(&proc) {
                     self.selected_processes.push(proc.clone());
                 }
-                self.update_combo_box();
             }
             PlotWindowMessage::RemoveProcess(proc) => {
                 self.selected_processes.retain(|p| p != &proc);
-                self.update_combo_box();
             }
         }
     }
@@ -123,17 +122,7 @@ impl PlotWindow {
         }
     }
 
-    fn update_combo_box(&mut self) {
-        let available: Vec<String> = self
-            .available_processes
-            .iter()
-            .filter(|p| !self.selected_processes.contains(p))
-            .cloned()
-            .collect();
-        self.process_combo_box = combo_box::State::new(available);
-    }
-
-    pub fn view(&self) -> Element<'_, PlotWindowMessage> {
+    pub fn view<'a>(&'a self, sys: &'a HashMap<Pid, Process>) -> Element<'a, PlotWindowMessage> {
         let sidebar_animation_factor = self
             .sidebar_expanded
             .animate(std::convert::identity, self.now);
@@ -145,7 +134,6 @@ impl PlotWindow {
         /*
          ========== SIDEBAR CONTENT ==========
         */
-
         let toggle_icon = if is_collapsed {
             crate::assets::ARROW_RIGHT_ICON // Expand
         } else {
@@ -158,18 +146,102 @@ impl PlotWindow {
                     .width(30)
                     .height(30),
             )
-            .align_x(iced::Center)
-            .align_y(iced::Center)
+            .align_x(Center)
+            .align_y(Center)
             .width(30)
             .height(30),
         )
         .on_press(PlotWindowMessage::ToggleSidebar)
         .style(styles::ghost_icon_button_style)
         .padding(4);
+        let process_column = PlotWindow::process_column(sys);
+
+        // Left column: Selected processes
+        let selected_column = scrollable(
+            column![
+                text("Selected").size(12).style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.8, 0.8, 0.8))
+                }),
+                rule::horizontal(1).style(|_| rule::Style {
+                    color: Color::from_rgb(0.3, 0.3, 0.3),
+                    radius: 1.0.into(),
+                    fill_mode: rule::FillMode::Percent(100.0),
+                    snap: false,
+                }),
+                // Selected Pills
+                if self.selected_processes.is_empty() {
+                    column![text("None").size(11).style(|_| text::Style {
+                        color: Some(Color::from_rgb(0.5, 0.5, 0.5))
+                    })]
+                } else {
+                    column(
+                        self.selected_processes
+                            .iter()
+                            .map(|proc| {
+                                button(
+                                    row![text(proc).size(11), text("×").size(12)]
+                                        .spacing(4)
+                                        .align_y(Center),
+                                )
+                                .on_press(PlotWindowMessage::RemoveProcess(proc.clone()))
+                                .style(compact_icon_button_style)
+                                .padding([3, 8])
+                                .into()
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .spacing(4)
+                }
+            ]
+            .spacing(8),
+        )
+        .width(Length::FillPortion(1));
+
+        // Right column: Process list with header
+        let process_header = row![
+            text("Name")
+                .size(10)
+                .width(Length::FillPortion(3))
+                .style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                }),
+            text("CPU")
+                .size(10)
+                .width(Length::Fixed(50.0))
+                .style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                }),
+            text("Mem")
+                .size(10)
+                .width(Length::Fixed(55.0))
+                .style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                }),
+            text("").size(10).width(Length::Fixed(30.0)), // Space for button column
+        ]
+        .spacing(5);
+
+        let process_list_column = scrollable(
+            column![
+                text("Processes").size(12).style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.8, 0.8, 0.8))
+                }),
+                rule::horizontal(1).style(|_| rule::Style {
+                    color: Color::from_rgb(0.3, 0.3, 0.3),
+                    radius: 1.0.into(),
+                    fill_mode: rule::FillMode::Percent(100.0),
+                    snap: false,
+                }),
+                process_header,
+                process_column
+            ]
+            .spacing(6),
+        )
+        .width(Length::FillPortion(2));
 
         let process_content = container(
             column![
-                text("Monitor Processes").size(15).style(|_| text::Style {
+                text("Monitor Processes").size(14).style(|_| text::Style {
                     color: Some(Color::from_rgb(0.8, 0.8, 0.8))
                 }),
                 rule::horizontal(2).style(|_| rule::Style {
@@ -178,63 +250,27 @@ impl PlotWindow {
                     fill_mode: rule::FillMode::Percent(100.0),
                     snap: false,
                 }),
-                scrollable(
-                    column![
-                        column![
-                            text("Add Process").size(13),
-                            combo_box(
-                                &self.process_combo_box,
-                                "Type to search...",
-                                None,
-                                PlotWindowMessage::ProcessSelected
-                            )
-                            .width(Length::Fill)
-                        ]
-                        .spacing(8),
-                        rule::horizontal(1),
-                        text("Selected:").size(13),
-                        // Selected Pills
-                        if self.selected_processes.is_empty() {
-                            column![text("No processes selected")
-                                .size(13)
-                                .style(|_| text::Style {
-                                    color: Some(Color::from_rgb(0.5, 0.5, 0.5))
-                                })]
-                        } else {
-                            column![row(self
-                                .selected_processes
-                                .iter()
-                                .map(|proc| {
-                                    button(
-                                        row![text(proc).size(14), text(" ×").size(16)]
-                                            .spacing(4)
-                                            .align_y(Alignment::Center),
-                                    )
-                                    .on_press(PlotWindowMessage::RemoveProcess(proc.clone()))
-                                    .style(styles::compact_icon_button_style)
-                                    .padding([4, 10])
-                                    .into()
-                                })
-                                .collect::<Vec<_>>())
-                            .spacing(6)
-                            .wrap()]
-                        }
-                    ]
-                    .spacing(15)
-                )
+                row![
+                    selected_column,
+                    rule::vertical(1).style(|_| rule::Style {
+                        color: Color::from_rgb(0.3, 0.3, 0.3),
+                        radius: 1.0.into(),
+                        fill_mode: rule::FillMode::Full,
+                        snap: false,
+                    }),
+                    process_list_column
+                ]
                 .height(Length::Fill)
             ]
-            .spacing(10),
+            .spacing(8),
         );
 
         // Assemble Sidebar
         let left_sidebar_content = row![
             column![toggle_btn]
-                .width(Length::Fixed(50.0))
-                .align_x(iced::Center), // Button column
-            container(process_content)
-                .padding(1)
-                .width(Length::Fixed(150.0)) // Content column
+                .width(Length::Fixed(30.0))
+                .align_x(Center),
+            container(process_content).width(Length::Fixed(520.0))
         ]
         .width(Length::Fixed(SIDEBAR_EXPANDED_WIDTH));
 
@@ -242,7 +278,7 @@ impl PlotWindow {
             .width(Length::Fixed(current_sidebar_width))
             .height(Length::Fill)
             .style(styles::card_container_style)
-            .padding(5);
+            .padding(10);
 
         /*
         ========== TEMPERATURE SECTION ==========
@@ -328,5 +364,38 @@ impl PlotWindow {
                 ..Default::default()
             })
             .into()
+    }
+
+    fn process_column<'a>(
+        sys: &'a HashMap<Pid, Process>,
+    ) -> Column<'a, PlotWindowMessage, Theme, iced::Renderer> {
+        Column::with_children(
+            sys.iter()
+                .map(|(_pid, process)| {
+                    row![
+                        text(process.name().to_string_lossy())
+                            .size(11)
+                            .width(Length::FillPortion(3)),
+                        text(format!("{:.1}%", process.cpu_usage()))
+                            .size(11)
+                            .width(Length::Fixed(50.0)),
+                        text(format!("{}K", process.memory() / 1024))
+                            .size(11)
+                            .width(Length::Fixed(55.0)),
+                        button("+")
+                            .padding([2, 5])
+                            .style(compact_icon_button_style)
+                            .on_press(PlotWindowMessage::ProcessSelected(
+                                process.name().to_string_lossy().to_string()
+                            )),
+                        text("").width(Length::Fixed(10.0)), // Spacer for scrollbar
+                    ]
+                    .spacing(5)
+                    .align_y(Alignment::Center)
+                    .into()
+                })
+                .collect::<Vec<Element<'a, PlotWindowMessage, Theme, iced::Renderer>>>(),
+        )
+        .spacing(3)
     }
 }

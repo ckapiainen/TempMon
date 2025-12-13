@@ -9,7 +9,6 @@ use iced::{font, never, Center, Color, Element, Fill, Font, Padding, Theme};
 
 use crate::app::main_window::MainWindowMessage;
 
-
 /// Returns `None` if no GPU data is available.
 /// # Args
 /// * `gpu_data` - Vector of GPU statistics (supports multiple GPUs)
@@ -36,7 +35,8 @@ pub fn render_gpu_card<'a>(
         + (animation_factor * (GPU_CARD_EXPANDED_HEIGHT - GPU_CARD_COLLAPSED_HEIGHT));
 
     // Build GPU switch buttons
-    let gpu_switch_button_row = render_gpu_switch_buttons(gpu_data, selected_gpu_index, is_expanded);
+    let gpu_switch_button_row =
+        render_gpu_switch_buttons(gpu_data, selected_gpu_index, is_expanded);
 
     // Clickable header with GPU selector buttons
     let gpu_header_button = button(
@@ -114,12 +114,9 @@ pub fn render_gpu_card<'a>(
             .on_link_click(never),
             container(
                 row![
-                    text(format!(
-                        "L: {}",
-                        settings.format_temp(gpu.core_temp_min, 1)
-                    ))
-                    .size(16)
-                    .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                    text(format!("L: {}", settings.format_temp(gpu.core_temp_min, 1)))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                     text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
                     text(format!(
                         "Avg: {}",
@@ -128,12 +125,9 @@ pub fn render_gpu_card<'a>(
                     .size(16)
                     .color(Color::from_rgb(0.7, 0.7, 0.7)),
                     text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                    text(format!(
-                        "H: {}",
-                        settings.format_temp(gpu.core_temp_max, 1)
-                    ))
-                    .size(16)
-                    .color(Color::from_rgb(0.7, 0.7, 0.7)),
+                    text(format!("H: {}", settings.format_temp(gpu.core_temp_max, 1)))
+                        .size(16)
+                        .color(Color::from_rgb(0.7, 0.7, 0.7)),
                 ]
                 .spacing(4)
             )
@@ -149,8 +143,7 @@ pub fn render_gpu_card<'a>(
             rich_text![
                 span(format!(
                     "{:.1}",
-                    TempUnits::Celsius
-                        .convert(gpu.memory_junction_temp, settings.temp_unit())
+                    TempUnits::Celsius.convert(gpu.memory_junction_temp, settings.temp_unit())
                 ))
                 .size(48),
                 span(" \u{00B0}").size(32).font(Font {
@@ -313,16 +306,13 @@ fn render_gpu_switch_buttons<'a>(
     .align_y(Center)
 }
 
-/// Safely retrieves a GPU reference with fallback handling.
-///
 /// If the index is out of bounds, logs an error and returns the first GPU,
 /// or a default empty GPU if no GPUs are available.
 fn get_gpu_safe<'a>(gpu_data: &'a Vec<GpuData>, selected_gpu_index: usize) -> &'a GpuData {
     // Create a default GPU once for fallback
     static DEFAULT_GPU: std::sync::OnceLock<GpuData> = std::sync::OnceLock::new();
-    let default_gpu = DEFAULT_GPU.get_or_init(|| {
-        GpuData::new(lhm_client::HardwareType::GpuNvidia, "No GPU".to_string())
-    });
+    let default_gpu = DEFAULT_GPU
+        .get_or_init(|| GpuData::new(lhm_client::HardwareType::GpuNvidia, "No GPU".to_string()));
 
     match gpu_data.get(selected_gpu_index) {
         Some(gpu) => gpu,

@@ -125,7 +125,7 @@ impl MainWindow {
         let is_gpu_card_expanded = self.gpu_card_expanded.value > 0.5;
 
         // Render cards using extracted modules
-        let cpu_card = cards::general_cpu_card::render_general_cpu_card(
+        let cpu_card = cards::cpu_card::render_general_cpu_card(
             cpu_data,
             settings,
             cpu_animation_factor,
@@ -133,7 +133,7 @@ impl MainWindow {
             MainWindowMessage::ToggleCpuCard,
         );
 
-        let cores_card = cards::cores_card::render_cores_card(
+        let cores_card = cards::cpu_cores_card::render_cores_card(
             &cpu_data.core_utilization,
             &cpu_data.core_power_draw,
             self.cpu_bar_chart_state,
