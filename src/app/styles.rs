@@ -423,7 +423,7 @@ pub fn thin_scrollbar_style(_theme: &Theme, _status: scrollable::Status) -> scro
             background: Some(Background::Color(Color::TRANSPARENT)),
             border: Border::default(),
             scroller: scrollable::Scroller {
-                color: Color::from_rgba(0.5, 0.5, 0.5, 0.3),
+                background: Background::Color(Color::from_rgba(0.5, 0.5, 0.5, 0.3)),
                 border: Border {
                     color: Color::TRANSPARENT,
                     width: 0.0,
@@ -435,7 +435,7 @@ pub fn thin_scrollbar_style(_theme: &Theme, _status: scrollable::Status) -> scro
             background: Some(Background::Color(Color::TRANSPARENT)),
             border: Border::default(),
             scroller: scrollable::Scroller {
-                color: Color::from_rgba(0.5, 0.5, 0.5, 0.3),
+                background: Background::Color(Color::from_rgba(0.5, 0.5, 0.5, 0.3)),
                 border: Border {
                     color: Color::TRANSPARENT,
                     width: 0.0,
@@ -444,6 +444,56 @@ pub fn thin_scrollbar_style(_theme: &Theme, _status: scrollable::Status) -> scro
             },
         },
         gap: None,
+        auto_scroll: scrollable::AutoScroll {
+            background: Background::Color(Color::TRANSPARENT),
+            border: Border::default(),
+            icon: Color::TRANSPARENT,
+            shadow: Shadow::default(),
+        },
+    }
+}
+
+/// Sleek, rounded, thin scrollbar style for modern UI
+pub fn sleek_scrollbar_style(_theme: &Theme, status: scrollable::Status) -> scrollable::Style {
+    let scroller_background = match status {
+        scrollable::Status::Active { .. } => Background::Color(Color::from_rgba(0.6, 0.6, 0.6, 0.4)),
+        scrollable::Status::Hovered { .. } => Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.6)),
+        scrollable::Status::Dragged { .. } => Background::Color(Color::from_rgba(0.75, 0.75, 0.75, 0.7)),
+    };
+
+    scrollable::Style {
+        container: container::Style::default(),
+        vertical_rail: scrollable::Rail {
+            background: Some(Background::Color(Color::TRANSPARENT)),
+            border: Border::default(),
+            scroller: scrollable::Scroller {
+                background: scroller_background,
+                border: Border {
+                    color: Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: Radius::from(6.0), // Rounded ends
+                },
+            },
+        },
+        horizontal_rail: scrollable::Rail {
+            background: Some(Background::Color(Color::TRANSPARENT)),
+            border: Border::default(),
+            scroller: scrollable::Scroller {
+                background: scroller_background,
+                border: Border {
+                    color: Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: Radius::from(6.0), // Rounded ends
+                },
+            },
+        },
+        gap: None,
+        auto_scroll: scrollable::AutoScroll {
+            background: Background::Color(Color::TRANSPARENT),
+            border: Border::default(),
+            icon: Color::TRANSPARENT,
+            shadow: Shadow::default(),
+        },
     }
 }
 

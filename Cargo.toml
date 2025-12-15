@@ -7,7 +7,7 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-iced = { git = "https://github.com/iced-rs/iced", rev = "bfc27e4", features = ["tokio", "wgpu", "image", "svg", "canvas"] }
+iced = { version = "0.14.0", features = ["tokio", "wgpu", "image", "svg", "canvas"] }
 iced_plot = { git = "https://github.com/ckapiainen/iced_plot", branch = "font-edit-and-line-width" }
 iced_aksel = { version = "0.1" }
 anyhow = "1.0.100"

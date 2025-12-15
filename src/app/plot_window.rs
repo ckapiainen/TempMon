@@ -2,44 +2,45 @@ use crate::app::graphs::cpu_power_usage::CPUPowerAndUsageGraph;
 use crate::app::graphs::gpu_power_usage::GPUPowerAndUsageGraph;
 use crate::app::graphs::temp_graph::TemperatureGraph;
 use crate::app::styles;
-use crate::app::styles::compact_icon_button_style;
+use crate::app::styles::{compact_icon_button_style, sleek_scrollbar_style};
 use crate::constants::sidebar::*;
 use crate::types::TempUnits;
 use crate::utils::csv_logger::CsvLogger;
-use iced::widget::{
-    button, column, combo_box, container, row, rule, scrollable, svg, text, Column,
-};
+use iced::widget::{button, column, container, row, rule, scrollable, svg, text, tooltip, Column};
 use iced::{window, Alignment, Center, Color, Element, Length, Subscription, Theme};
 use lilt::{Animated, Easing};
 use std::collections::HashMap;
 use std::time::Instant;
-use sysinfo::{Pid, Process};
+use sysinfo::System;
 
+//TODO: Add tooltip about the memory usage: "Resident Set Size (RSS) - includes shared resources like DLLs. Higher than Task Manager's Private Working Set.",
+// TODO: Sort processes by CPU usage or mem usage
+//TODO: Input text box for searching process name
 pub struct PlotWindow {
     temp_graph: TemperatureGraph,
     cpu_power_usage_graph: CPUPowerAndUsageGraph,
     gpu_power_usage_graph: GPUPowerAndUsageGraph,
     // Process monitoring
-    selected_processes: Vec<String>,
+    grouped_processes: GroupedProcessesVector,
+    pub selected_processes: Vec<String>,
     // Process sidebar state
     sidebar_expanded: Animated<f32, Instant>,
     now: Instant,
 }
+type GroupedProcessesVector = Vec<(String, usize, f32, u64)>;
 
 #[derive(Debug, Clone)]
 pub enum PlotWindowMessage {
     TempPlotMessage(iced_plot::PlotUiMessage),
     CPUPowerUsagePlotMessage(iced_plot::PlotUiMessage),
     GPUPowerUsagePlotMessage(iced_plot::PlotUiMessage),
-    Tick,
+    Animate(Instant), // For visual animation
+    RefreshData,      // For data updates
     ToggleSidebar,
-    ProcessSelected(String),
+    ProcessSelected(String, f32, u64),
     RemoveProcess(String),
 }
-type GroupedProcessesVector = Vec<(String, usize, f32, u64)>;
-// TODO: Process monitor
 //TODO: toggle show/hide for gpu
-//TODO: normalize process cpu usages (process / core_count). Add tooltip/note explaining process mem usage includes shared resources (Resident Set Size)
 
 impl PlotWindow {
     pub fn new(temp_units_from_settings: String) -> Self {
@@ -49,23 +50,12 @@ impl PlotWindow {
             TempUnits::Fahrenheit
         };
 
-        // Mock data
-        let available_processes = vec![
-            "chrome.exe".to_string(),
-            "rustc.exe".to_string(),
-            "code.exe".to_string(),
-            "spotify.exe".to_string(),
-            "system".to_string(),
-            "discord.exe".to_string(),
-            "notepad.exe".to_string(),
-            "explorer.exe".to_string(),
-        ];
-
         Self {
             temp_graph: TemperatureGraph::new(units),
             cpu_power_usage_graph: CPUPowerAndUsageGraph::new(),
             gpu_power_usage_graph: GPUPowerAndUsageGraph::new(),
-            selected_processes: vec![],
+            grouped_processes: Vec::new(),
+            selected_processes: Vec::new(),
             sidebar_expanded: Animated::new(0.0).duration(300.0).easing(Easing::EaseInOut),
             now: Instant::now(),
         }
@@ -75,6 +65,7 @@ impl PlotWindow {
         &mut self,
         csv_logger: &CsvLogger,
         message: PlotWindowMessage,
+        sys: &System,
         units: TempUnits,
         gpu_data: &[crate::collectors::GpuData],
     ) {
@@ -86,8 +77,12 @@ impl PlotWindow {
             PlotWindowMessage::GPUPowerUsagePlotMessage(msg) => {
                 self.gpu_power_usage_graph.update_ui(msg)
             }
-            PlotWindowMessage::Tick => {
+            PlotWindowMessage::Animate(now) => {
+                self.now = now;
+            }
+            PlotWindowMessage::RefreshData => {
                 self.now = Instant::now();
+                self.grouped_processes = Self::group_processes(sys);
                 self.temp_graph.update_data(csv_logger, units, gpu_data);
                 self.cpu_power_usage_graph.update_data(csv_logger);
                 self.gpu_power_usage_graph.update_data(csv_logger, gpu_data);
@@ -103,9 +98,10 @@ impl PlotWindow {
                 };
                 self.sidebar_expanded.transition(new_value, Instant::now());
             }
-            PlotWindowMessage::ProcessSelected(proc) => {
-                if !self.selected_processes.contains(&proc) {
-                    self.selected_processes.push(proc.clone());
+            PlotWindowMessage::ProcessSelected(proc_name, _cpu, _mem) => {
+                // Store just the process name; format with current metrics when logging
+                if !self.selected_processes.contains(&proc_name) {
+                    self.selected_processes.push(proc_name);
                 }
             }
             PlotWindowMessage::RemoveProcess(proc) => {
@@ -117,13 +113,15 @@ impl PlotWindow {
     pub fn subscription(&self) -> Subscription<PlotWindowMessage> {
         // Only sub to frames when animation are active
         if self.sidebar_expanded.in_progress(self.now) {
-            window::frames().map(|_| PlotWindowMessage::Tick)
+            // Fix: Map Instant to Animate message
+            window::frames().map(PlotWindowMessage::Animate)
         } else {
             Subscription::none()
         }
     }
 
-    pub fn view<'a>(&'a self, sys: &'a HashMap<Pid, Process>) -> Element<'a, PlotWindowMessage> {
+    /// Renders the plot window UI with graphs and animated process monitoring sidebar
+    pub fn view<'a>(&'a self) -> Element<'a, PlotWindowMessage> {
         let sidebar_animation_factor = self
             .sidebar_expanded
             .animate(std::convert::identity, self.now);
@@ -147,21 +145,21 @@ impl PlotWindow {
                     .width(30)
                     .height(30),
             )
-                .align_x(Center)
-                .align_y(Center)
-                .width(30)
-                .height(30),
+            .align_x(Center)
+            .align_y(Center)
+            .width(30)
+            .height(30),
         )
-            .on_press(PlotWindowMessage::ToggleSidebar)
-            .style(styles::ghost_icon_button_style)
-            .padding(4);
-        let sys_grouped = Self::group_processes(sys);
-        let process_column = Self::process_column(sys_grouped);
+        .on_press(PlotWindowMessage::ToggleSidebar)
+        .style(styles::ghost_icon_button_style)
+        .padding(4);
+        // Use Cached Data for View
+        let process_column = Self::process_column(&self.grouped_processes);
 
         // Left column: Selected processes
         let selected_column = scrollable(
             column![
-                text("Selected").size(12).style(|_| text::Style {
+                text("Selected").size(15).style(|_| text::Style {
                     color: Some(Color::from_rgb(0.8, 0.8, 0.8))
                 }),
                 rule::horizontal(1).style(|_| rule::Style {
@@ -172,7 +170,7 @@ impl PlotWindow {
                 }),
                 // Selected Pills
                 if self.selected_processes.is_empty() {
-                    column![text("None").size(11).style(|_| text::Style {
+                    column![text("None").size(15).style(|_| text::Style {
                         color: Some(Color::from_rgb(0.5, 0.5, 0.5))
                     })]
                 } else {
@@ -181,13 +179,13 @@ impl PlotWindow {
                             .iter()
                             .map(|proc| {
                                 button(
-                                    row![text(proc).size(11), text("×").size(12)]
+                                    row![text(proc).size(14), text("×").size(14)]
                                         .spacing(4)
                                         .align_y(Center),
                                 )
                                 .on_press(PlotWindowMessage::RemoveProcess(proc.clone()))
                                 .style(compact_icon_button_style)
-                                .padding([3, 8])
+                                .padding([4, 10])
                                 .into()
                             })
                             .collect::<Vec<_>>(),
@@ -195,9 +193,10 @@ impl PlotWindow {
                     .spacing(4)
                 }
             ]
-                .spacing(8),
+            .spacing(8),
         )
-            .width(Length::FillPortion(1));
+        .style(sleek_scrollbar_style)
+        .width(Length::FillPortion(1));
 
         // Right column: Process list with header
         let process_header = row![
@@ -209,23 +208,17 @@ impl PlotWindow {
                 }),
             text("CPU")
                 .size(10)
-                .width(Length::Fixed(50.0))
-                .style(|_| text::Style {
-                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
-                }),
-            text("Mem")
-                .size(10)
                 .width(Length::Fixed(55.0))
                 .style(|_| text::Style {
                     color: Some(Color::from_rgb(0.7, 0.7, 0.7))
                 }),
             text("").size(10).width(Length::Fixed(30.0)), // Space for button column
         ]
-            .spacing(5);
+        .spacing(5);
 
         let process_list_column = scrollable(
             column![
-                text("Processes").size(12).style(|_| text::Style {
+                text("Processes").size(15).style(|_| text::Style {
                     color: Some(Color::from_rgb(0.8, 0.8, 0.8))
                 }),
                 rule::horizontal(1).style(|_| rule::Style {
@@ -237,13 +230,14 @@ impl PlotWindow {
                 process_header,
                 process_column
             ]
-                .spacing(6),
+            .spacing(6),
         )
-            .width(Length::FillPortion(2));
+        .style(sleek_scrollbar_style)
+        .width(Length::FillPortion(2));
 
         let process_content = container(
             column![
-                text("Monitor Processes").size(14).style(|_| text::Style {
+                text("Monitor Processes").size(17).style(|_| text::Style {
                     color: Some(Color::from_rgb(0.8, 0.8, 0.8))
                 }),
                 rule::horizontal(2).style(|_| rule::Style {
@@ -264,7 +258,7 @@ impl PlotWindow {
                 ]
                 .height(Length::Fill)
             ]
-                .spacing(8),
+            .spacing(8),
         );
 
         // Assemble Sidebar
@@ -272,9 +266,9 @@ impl PlotWindow {
             column![toggle_btn]
                 .width(Length::Fixed(30.0))
                 .align_x(Center),
-            container(process_content).width(Length::Fixed(520.0))
+            container(process_content).width(Length::Fill)
         ]
-            .width(Length::Fixed(SIDEBAR_EXPANDED_WIDTH));
+        .width(Length::Fixed(SIDEBAR_EXPANDED_WIDTH));
 
         let left_sidebar = container(left_sidebar_content)
             .width(Length::Fixed(current_sidebar_width))
@@ -296,8 +290,8 @@ impl PlotWindow {
             .width(Length::Fill)
             .style(styles::card_container_style),
         ]
-            .spacing(10)
-            .width(Length::FillPortion(2));
+        .spacing(10)
+        .width(Length::FillPortion(2));
 
         /*
         ========== POWER/USAGE METRICS COLUMN ==========
@@ -331,7 +325,7 @@ impl PlotWindow {
             ]
             .spacing(10),
         ]
-            .width(Length::FillPortion(3));
+        .width(Length::FillPortion(3));
 
         /*
         ========== MAIN LAYOUT ==========
@@ -353,10 +347,10 @@ impl PlotWindow {
             }),
             metrics_column
         ]
-            .spacing(15)
-            .padding(15)
-            .height(Length::Fill)
-            .width(Length::Fill);
+        .spacing(15)
+        .padding(15)
+        .height(Length::Fill)
+        .width(Length::Fill);
 
         container(content)
             .width(Length::Fill)
@@ -368,56 +362,83 @@ impl PlotWindow {
             .into()
     }
 
+    /// Creates a scrollable column of process rows showing name, CPU%, memory, and add button
     fn process_column(
-        sys: GroupedProcessesVector,
-    ) -> Column<'static, PlotWindowMessage, Theme, iced::Renderer> {
+        sys: &GroupedProcessesVector, // Changed to ref to use cache
+    ) -> Column<'_, PlotWindowMessage, Theme, iced::Renderer> {
         Column::with_children(
-            sys.into_iter()
+            sys.iter()
                 .map(|(name, _count, cpu, mem)| {
                     row![
                         text(name.clone())
-                            .size(11)
-                            .width(Length::FillPortion(3)),
+                            .size(13)
+                            .width(Length::FillPortion(3))
+                            .wrapping(text::Wrapping::Word),
                         text(format!("{:.1}%", cpu))
-                            .size(11)
-                            .width(Length::Fixed(50.0)),
-                        text(format!("{}MB", mem / 1024 / 1024))
-                            .size(11)
+                            .size(13)
                             .width(Length::Fixed(55.0)),
+                        text(format!("{}MB", mem / 1024 / 1024))
+                            .size(13)
+                            .width(Length::Fixed(60.0)),
                         button("+")
                             .padding([2, 5])
                             .style(compact_icon_button_style)
-                            .on_press(PlotWindowMessage::ProcessSelected(name)),
+                            .on_press(PlotWindowMessage::ProcessSelected(name.clone(), *cpu, *mem)),
                         text("").width(Length::Fixed(10.0)), // Spacer for scrollbar
                     ]
-                        .spacing(5)
-                        .align_y(Alignment::Center)
-                        .into()
+                    .spacing(5)
+                    .align_y(Alignment::Center)
+                    .into()
                 })
-                .collect::<Vec<Element<'static, PlotWindowMessage, Theme, iced::Renderer>>>(),
+                .collect::<Vec<Element<'_, PlotWindowMessage, Theme, iced::Renderer>>>(),
         )
-            .spacing(3)
+        .spacing(3)
     }
     /// Groups and aggregates system processes by their name, summarizing process counts,
     /// total CPU usage, and memory usage.
-    fn group_processes(sys: &HashMap<Pid, Process>) -> GroupedProcessesVector {
+    fn group_processes(sys: &System) -> GroupedProcessesVector {
         let mut grouped: HashMap<String, (usize, f32, u64)> = HashMap::new(); //name -> (count, total_cpu, total_mem)
-        for (_, process) in sys.iter() {
-            let name = process.name().to_string_lossy().to_string();
+        let cpu_count = sys.cpus().len().max(1) as f32; // Get logical core count
 
-            grouped.entry(name)
+        for (_, process) in sys.processes() {
+            let name = process.name().to_string_lossy().to_string();
+            // Normalize CPU usage
+            let normalized_cpu = process.cpu_usage() / cpu_count;
+            grouped
+                .entry(name)
                 .and_modify(|(count, cpu, mem)| {
                     *count += 1;
-                    *cpu += process.cpu_usage();
+                    *cpu += normalized_cpu;
                     *mem += process.memory();
                 })
-                .or_insert((1, process.cpu_usage(), process.memory()));
+                .or_insert((1, normalized_cpu, process.memory()));
         }
-
-        let mut processes: Vec<_> = grouped.into_iter()
+        let mut processes: Vec<_> = grouped
+            .into_iter()
             .map(|(name, (count, cpu, mem))| (name, count, cpu, mem))
             .collect();
         processes.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
         processes
+    }
+
+    /// Formats selected processes with current metrics for CSV logging
+    /// Returns String of selected processes ie.: "chrome.exe=25.5%@1024MB,firefox.exe=8.2%@300MB" or empty string
+    pub fn format_selected_processes_for_csv(&self) -> String {
+        if self.selected_processes.is_empty() {
+            return String::new();
+        }
+        self.selected_processes
+            .iter()
+            .filter_map(|proc_name| {
+                // Find this process in the grouped data
+                self.grouped_processes
+                    .iter()
+                    .find(|(name, _, _, _)| name == proc_name)
+                    .map(|(name, _count, cpu, mem)| {
+                        format!("{}={:.1}%@{}MB", name, cpu, mem / 1024 / 1024)
+                    })
+            })
+            .collect::<Vec<_>>()
+            .join(",")
     }
 }

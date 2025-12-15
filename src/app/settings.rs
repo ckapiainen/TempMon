@@ -264,9 +264,11 @@ impl Settings {
             text("BEHAVIOR").size(14).style(|_theme| text::Style {
                 color: Some(Color::from_rgb(0.6, 0.6, 0.6))
             }),
-            checkbox("Start with Windows", self.start_with_windows)
+            checkbox(self.start_with_windows)
+                .label("Start with Windows")
                 .on_toggle(TempMonMessage::ToggleStartWithWindows),
-            checkbox("Start minimized to tray", self.start_minimized)
+            checkbox(self.start_minimized)
+                .label("Start minimized to tray")
                 .on_toggle(TempMonMessage::ToggleStartMinimized),
             column![
                 text("Update Interval")

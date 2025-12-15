@@ -12,7 +12,7 @@ pub mod animation {
 
 /// Sidebar-related constants for the plot window
 pub mod sidebar {
-    pub const SIDEBAR_EXPANDED_WIDTH: f32 = 550.0;
+    pub const SIDEBAR_EXPANDED_WIDTH: f32 = 700.0;
     pub const SIDEBAR_COLLAPSED_WIDTH: f32 = 50.0;
 }
 

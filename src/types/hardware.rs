@@ -30,6 +30,7 @@ pub enum ComponentType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardwareLogEntry {
     pub timestamp: String,
+    pub selected_process: String,
     pub component_type: ComponentType,
     pub temperature_unit: String,
     pub temperature: f32,

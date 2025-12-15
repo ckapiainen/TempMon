@@ -369,6 +369,7 @@ impl TempMon {
                 self.plot_window.update(
                     &self.csv_logger,
                     msg,
+                    &self.system,
                     self.settings.selected_temp_units.unwrap(),
                     &self.gpu_data,
                 );
@@ -445,6 +446,7 @@ impl TempMon {
                 // Log CPU data to CSV
                 let entry = HardwareLogEntry {
                     timestamp: chrono::Local::now().to_rfc3339(),
+                    selected_process: self.plot_window.format_selected_processes_for_csv(), // No system arg needed, uses cache
                     component_type: ComponentType::CPU,
                     temperature_unit: selected_unit.to_string(),
                     temperature: converted_temp,
@@ -463,9 +465,11 @@ impl TempMon {
                         self.last_error = Some(error_msg);
                     }
                 }
+
                 self.plot_window.update(
                     &self.csv_logger,
-                    PlotWindowMessage::Tick,
+                    PlotWindowMessage::RefreshData,
+                    &self.system,
                     self.settings
                         .selected_temp_units
                         .unwrap_or(TempUnits::Celsius),
@@ -487,6 +491,7 @@ impl TempMon {
                         // Log CPU data to CSV
                         let entry = HardwareLogEntry {
                             timestamp: chrono::Local::now().to_rfc3339(),
+                            selected_process: self.plot_window.format_selected_processes_for_csv(), // No system arg needed, uses cache
                             component_type: ComponentType::GPU,
                             temperature_unit: selected_unit.to_string(),
                             temperature: converted_temp,
@@ -507,7 +512,8 @@ impl TempMon {
                         }
                         self.plot_window.update(
                             &self.csv_logger,
-                            PlotWindowMessage::Tick,
+                            PlotWindowMessage::RefreshData,
+                            &self.system,
                             self.settings
                                 .selected_temp_units
                                 .unwrap_or(TempUnits::Celsius),
@@ -529,10 +535,7 @@ impl TempMon {
                 .main_window
                 .view(&self.cpu_data, &self.gpu_data, &self.settings)
                 .map(TempMonMessage::MainWindow),
-            Screen::Plotter => self
-                .plot_window
-                .view(self.system.processes())
-                .map(TempMonMessage::PlotWindow),
+            Screen::Plotter => self.plot_window.view().map(TempMonMessage::PlotWindow),
         };
         if self.show_settings_modal {
             self.settings.view(layout::with_header(page))

@@ -152,6 +152,7 @@ impl CsvLogger {
         if !file_exists {
             wtr.write_record(&[
                 "timestamp",
+                "selected_process",
                 "component_type",
                 "temperature_unit",
                 "temperature",
@@ -180,6 +181,7 @@ mod tests {
 
         let entries = vec![HardwareLogEntry {
             timestamp: Local::now().to_string(),
+            selected_process: "test_process".to_string(),
             component_type: ComponentType::CPU,
             temperature_unit: "Celsius".to_string(),
             temperature: 65.5,
@@ -212,6 +214,7 @@ mod tests {
         // Write first entry (creates first file with today's date)
         let entry1 = vec![HardwareLogEntry {
             timestamp: "2025-11-18 10:00:00".to_string(),
+            selected_process: "test_process".to_string(),
             component_type: ComponentType::CPU,
             temperature_unit: "C".to_string(),
             temperature: 65.0,
@@ -232,6 +235,7 @@ mod tests {
         // Write second entry (should create second file with new date)
         let entry2 = vec![HardwareLogEntry {
             timestamp: "2025-11-18 11:00:00".to_string(),
+            selected_process: "test_process".to_string(),
             component_type: ComponentType::CPU,
             temperature_unit: "C".to_string(),
             temperature: 70.0,
@@ -275,6 +279,7 @@ mod tests {
         for i in 0..5 {
             let entry = vec![HardwareLogEntry {
                 timestamp: format!("2025-11-18 10:{:02}:00", i),
+                selected_process: "test_process".to_string(),
                 component_type: ComponentType::CPU,
                 temperature_unit: "C".to_string(),
                 temperature: 65.0 + i as f32,
