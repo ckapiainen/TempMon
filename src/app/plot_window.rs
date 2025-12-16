@@ -6,7 +6,9 @@ use crate::app::styles::{compact_icon_button_style, sleek_scrollbar_style};
 use crate::constants::sidebar::*;
 use crate::types::TempUnits;
 use crate::utils::csv_logger::CsvLogger;
-use iced::widget::{button, column, container, row, rule, scrollable, svg, text, tooltip, Column};
+use iced::widget::{
+    button, column, container, row, rule, scrollable, svg, text, text_input, tooltip, Column,
+};
 use iced::{window, Alignment, Center, Color, Element, Length, Subscription, Theme};
 use lilt::{Animated, Easing};
 use std::collections::HashMap;
@@ -15,16 +17,17 @@ use sysinfo::System;
 
 //TODO: Add tooltip about the memory usage: "Resident Set Size (RSS) - includes shared resources like DLLs. Higher than Task Manager's Private Working Set.",
 // TODO: Sort processes by CPU usage or mem usage
-//TODO: Input text box for searching process name
 pub struct PlotWindow {
     temp_graph: TemperatureGraph,
     cpu_power_usage_graph: CPUPowerAndUsageGraph,
     gpu_power_usage_graph: GPUPowerAndUsageGraph,
     // Process monitoring
     grouped_processes: GroupedProcessesVector,
+    filtered_processes: GroupedProcessesVector,
     pub selected_processes: Vec<String>,
     // Process sidebar state
     sidebar_expanded: Animated<f32, Instant>,
+    search_input: String,
     now: Instant,
 }
 type GroupedProcessesVector = Vec<(String, usize, f32, u64)>;
@@ -37,6 +40,7 @@ pub enum PlotWindowMessage {
     Animate(Instant), // For visual animation
     RefreshData,      // For data updates
     ToggleSidebar,
+    SearchInput(String),
     ProcessSelected(String, f32, u64),
     RemoveProcess(String),
 }
@@ -55,8 +59,10 @@ impl PlotWindow {
             cpu_power_usage_graph: CPUPowerAndUsageGraph::new(),
             gpu_power_usage_graph: GPUPowerAndUsageGraph::new(),
             grouped_processes: Vec::new(),
+            filtered_processes: Vec::new(),
             selected_processes: Vec::new(),
             sidebar_expanded: Animated::new(0.0).duration(300.0).easing(Easing::EaseInOut),
+            search_input: String::new(),
             now: Instant::now(),
         }
     }
@@ -83,6 +89,15 @@ impl PlotWindow {
             PlotWindowMessage::RefreshData => {
                 self.now = Instant::now();
                 self.grouped_processes = Self::group_processes(sys);
+
+                if !self.search_input.is_empty() {
+                    self.filtered_processes = self
+                        .grouped_processes
+                        .iter()
+                        .filter(|proc| proc.0.contains(&self.search_input))
+                        .cloned()
+                        .collect();
+                }
                 self.temp_graph.update_data(csv_logger, units, gpu_data);
                 self.cpu_power_usage_graph.update_data(csv_logger);
                 self.gpu_power_usage_graph.update_data(csv_logger, gpu_data);
@@ -97,6 +112,21 @@ impl PlotWindow {
                     1.0
                 };
                 self.sidebar_expanded.transition(new_value, Instant::now());
+            }
+            PlotWindowMessage::SearchInput(input) => {
+                // Empty the filtered list if the input is empty
+                if input.is_empty() {
+                    self.filtered_processes = Vec::new();
+                    self.search_input = input;
+                    return;
+                }
+                self.filtered_processes = self
+                    .grouped_processes
+                    .iter()
+                    .cloned()
+                    .filter(|proc| proc.0.contains(&input)) //process name
+                    .collect();
+                self.search_input = input
             }
             PlotWindowMessage::ProcessSelected(proc_name, _cpu, _mem) => {
                 // Store just the process name; format with current metrics when logging
@@ -154,8 +184,11 @@ impl PlotWindow {
         .style(styles::ghost_icon_button_style)
         .padding(4);
         // Use Cached Data for View
-        let process_column = Self::process_column(&self.grouped_processes);
-
+        let process_column = if self.filtered_processes.is_empty() {
+            Self::process_column(&self.grouped_processes)
+        } else {
+            Self::process_column(&self.filtered_processes)
+        };
         // Left column: Selected processes
         let selected_column = scrollable(
             column![
@@ -212,6 +245,12 @@ impl PlotWindow {
                 .style(|_| text::Style {
                     color: Some(Color::from_rgb(0.7, 0.7, 0.7))
                 }),
+            text("MEM")
+                .size(10)
+                .width(Length::Fixed(55.0))
+                .style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                }),
             text("").size(10).width(Length::Fixed(30.0)), // Space for button column
         ]
         .spacing(5);
@@ -221,6 +260,7 @@ impl PlotWindow {
                 text("Processes").size(15).style(|_| text::Style {
                     color: Some(Color::from_rgb(0.8, 0.8, 0.8))
                 }),
+                text_input("Search", &self.search_input).on_input(PlotWindowMessage::SearchInput),
                 rule::horizontal(1).style(|_| rule::Style {
                     color: Color::from_rgb(0.3, 0.3, 0.3),
                     radius: 1.0.into(),
