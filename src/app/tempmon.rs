@@ -439,6 +439,9 @@ impl TempMon {
                 // Update tray tooltip with fresh hardware data
                 self.update_tray_tooltip();
 
+                // Update main window gauge with new temperature
+                self.main_window.update(MainWindowMessage::UpdateGaugeValue(self.cpu_data.temp as f64));
+
                 // Convert temperature to user's selected unit for CSV logging
                 let selected_unit = self.settings.temp_unit();
                 let converted_temp = TempUnits::Celsius.convert(self.cpu_data.temp, selected_unit);

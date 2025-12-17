@@ -3,9 +3,8 @@ use crate::app::styles;
 use crate::assets;
 use crate::collectors::cpu_data::CpuData;
 use crate::constants::animation::*;
-use crate::types::TempUnits;
 use iced::widget::{button, column, container, rich_text, row, rule, span, svg, text};
-use iced::{font, never, Center, Color, Element, Fill, Font, Padding};
+use iced::{font, never, Center, Color, Element, Fill, Font, Length, Padding};
 
 use crate::app::main_window::MainWindowMessage;
 
@@ -15,12 +14,14 @@ use crate::app::main_window::MainWindowMessage;
 /// * `animation_factor` - Animation progress (0.0 = collapsed, 1.0 = expanded)
 /// * `is_expanded` - Whether the card is currently expanded
 /// * `on_toggle` - Message to send when the header is clicked
+/// * `gauge_chart_element` - Pre-rendered gauge chart element
 pub fn render_general_cpu_card<'a>(
     cpu_data: &'a CpuData,
     settings: &'a Settings,
     animation_factor: f32,
     is_expanded: bool,
     on_toggle: MainWindowMessage,
+    gauge_chart_element: Element<'a, MainWindowMessage>,
 ) -> Element<'a, MainWindowMessage> {
     // Calculate animated height
     let cpu_card_height = CPU_CARD_COLLAPSED_HEIGHT
@@ -82,56 +83,63 @@ pub fn render_general_cpu_card<'a>(
         .align_x(Center)
         .width(195);
 
-        let temp = column![
-            text("TEMP").size(20),
-            rich_text![
-                span(format!(
-                    "{:.1}",
-                    TempUnits::Celsius.convert(cpu_data.temp, settings.temp_unit())
-                ))
-                .size(55),
-                span(" \u{00B0}").size(38).font(Font {
-                    weight: font::Weight::Light,
-                    ..Font::default()
-                }),
-                span(match settings.temp_unit() {
-                    TempUnits::Celsius => "C",
-                    TempUnits::Fahrenheit => "F",
-                })
-                .font(Font {
-                    weight: font::Weight::Light,
-                    ..Font::default()
-                })
-                .size(35),
-            ]
-            .on_link_click(never),
-            container(
-                column![
-                    row![
-                        text(format!("L: {}", settings.format_temp(cpu_data.temp_min, 1)))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(" | ").size(16).color(Color::from_rgb(0.7, 0.7, 0.7)),
-                        text(format!("H: {}", settings.format_temp(cpu_data.temp_max, 1)))
-                            .size(16)
-                            .color(Color::from_rgb(0.7, 0.7, 0.7)),
+        let temp = if is_expanded {
+            column![
+                text("TEMP").size(20),
+                container(gauge_chart_element)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill),
+                container(
+                    column![
+                        row![
+                            text(format!("L: {}", settings.format_temp(cpu_data.temp_min, 1)))
+                                .size(16)
+                                .style(|_| text::Style {
+                                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                                }),
+                            text(" | ").size(16).style(|_| text::Style {
+                                color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                            }),
+                            text(format!("H: {}", settings.format_temp(cpu_data.temp_max, 1)))
+                                .size(16)
+                                .style(|_| text::Style {
+                                    color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                                }),
+                        ]
+                        .spacing(4),
+                        text(format!(
+                            "Avg: {}",
+                            settings.format_temp(cpu_data.get_temp_avg(), 1)
+                        ))
+                        .size(16)
+                        .style(|_| text::Style {
+                            color: Some(Color::from_rgb(0.7, 0.7, 0.7))
+                        }),
                     ]
-                    .spacing(4),
-                    text(format!(
-                        "Avg: {}",
-                        settings.format_temp(cpu_data.get_temp_avg(), 1)
-                    ))
+                    .spacing(3)
+                    .align_x(Center)
+                )
+                .padding(8)
+                .style(styles::stats_container_style),
+            ]
+            .align_x(Center)
+            .width(215)
+        } else {
+            // Collapsed view
+            column![row![
+                text(format!("{}", settings.format_temp(cpu_data.temp, 1)))
                     .size(16)
-                    .color(Color::from_rgb(0.7, 0.7, 0.7)),
-                ]
-                .spacing(3)
-                .align_x(Center)
-            )
-            .padding(8)
-            .style(styles::stats_container_style),
-        ]
-        .align_x(Center)
-        .width(215);
+                    .style(|_| text::Style {
+                        color: Some(Color::from_rgb(0.9, 0.9, 0.9))
+                    }),
+                text(" | ").size(16).style(|_| text::Style {
+                    color: Some(Color::from_rgb(0.5, 0.5, 0.5))
+                }),
+            ]
+            .spacing(5)]
+            .align_x(Center)
+            .width(215)
+        };
 
         let clock_speed = column![
             text("CLOCK SPEED").size(18),

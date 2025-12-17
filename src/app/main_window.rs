@@ -1,4 +1,5 @@
 use super::cards;
+use crate::app::graphs::gauge::{Gauge, Placement, Zone};
 use crate::app::settings::Settings;
 use crate::collectors::cpu_data::CpuData;
 use crate::collectors::GpuData;
@@ -18,6 +19,7 @@ pub enum MainWindowMessage {
     ToggleGpuCard,
     Tick, // Frame update (REQUIRED for animations)
     GpuButtonPressed(usize),
+    UpdateGaugeValue(f64), // Update gauge with new temperature
 }
 
 pub struct MainWindow {
@@ -27,6 +29,7 @@ pub struct MainWindow {
     gpu_card_expanded: Animated<f32, Instant>,
     selected_gpu_index: usize,
     now: Instant,
+    cpu_temp_gauge: Gauge,
 }
 
 //TODO: Check for CPU cores bar chart overflow: scrollable container?
@@ -35,6 +38,19 @@ pub struct MainWindow {
 // TODO: 1: 5 sec timeout before setting min/max values. 2: 100% max value clips with box next to it
 impl MainWindow {
     pub fn new() -> Self {
+        let cpu_temp_gauge = Gauge::new("CPU TEMP", 0.0, 100.0)
+            .unit("°C")
+            // No animation to avoid CPU usage
+            .span(240.0)
+            .thickness(0.75)
+            .decimals(1)
+            .zone(Zone::Success(60.0))
+            .zone(Zone::Warning(75.0))
+            .zone(Zone::Danger(100.0))
+            .zone_opacity(0.3)
+            .value_pos(Placement::Center)
+            .title_pos(Placement::Bottom);
+
         Self {
             cpu_bar_chart_state: CpuBarChartState::Usage,
             cpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
@@ -42,6 +58,7 @@ impl MainWindow {
             gpu_card_expanded: Animated::new(1.0).duration(400.0).easing(Easing::EaseInOut),
             selected_gpu_index: 0,
             now: Instant::now(),
+            cpu_temp_gauge,
         }
     }
 
@@ -87,11 +104,16 @@ impl MainWindow {
                 // Update current time on each frame
                 self.now = Instant::now();
             }
+            MainWindowMessage::UpdateGaugeValue(temp) => {
+                // Update gauge with new temperature
+                self.cpu_temp_gauge.set_value(temp);
+            }
         }
     }
 
     pub fn subscription(&self) -> Subscription<MainWindowMessage> {
-        // Only subscribe to frames when animations are active
+        // Only subscribe to frames when card animations are active
+        // Gauge has no animation, so no need to check it
         if self.cpu_card_expanded.in_progress(self.now)
             || self.cores_card_expanded.in_progress(self.now)
             || self.gpu_card_expanded.in_progress(self.now)
@@ -103,11 +125,14 @@ impl MainWindow {
     }
 
     pub fn view<'a>(
-        &self,
+        &'a self,
         cpu_data: &'a CpuData,
         gpu_data: &'a Vec<GpuData>,
         settings: &'a Settings,
     ) -> Element<'a, MainWindowMessage> {
+        // Note: Gauge value is updated via UpdateGaugeValue message from parent
+        // when hardware data changes
+
         // Calculate animation factors
         let cpu_animation_factor = self
             .cpu_card_expanded
@@ -124,6 +149,11 @@ impl MainWindow {
             .animate(std::convert::identity, self.now);
         let is_gpu_card_expanded = self.gpu_card_expanded.value > 0.5;
 
+        // Render gauge chart (gauge is borrowed immutably from &self)
+        let gauge_chart = self.cpu_temp_gauge.chart()
+            .height(iced::Length::Fixed(160.0))
+            .width(iced::Length::Fixed(180.0));
+
         // Render cards using extracted modules
         let cpu_card = cards::cpu_card::render_general_cpu_card(
             cpu_data,
@@ -131,6 +161,7 @@ impl MainWindow {
             cpu_animation_factor,
             is_cpu_card_expanded,
             MainWindowMessage::ToggleCpuCard,
+            gauge_chart.into(),
         );
 
         let cores_card = cards::cpu_cores_card::render_cores_card(
