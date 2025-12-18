@@ -63,6 +63,67 @@ pub fn rounded_button_style(_theme: &Theme, status: button::Status) -> button::S
     }
 }
 
+pub fn active_header_button_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.26, 0.26, 0.29))),
+            border: Border {
+                color: Color::from_rgba(0.5, 0.5, 0.6, 0.8),
+                width: 2.0,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.95, 0.95, 0.95),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.4),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 4.0,
+            },
+            snap: false,
+        },
+        button::Status::Hovered => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.28, 0.28, 0.32))),
+            border: Border {
+                color: Color::from_rgba(0.55, 0.55, 0.65, 0.9),
+                width: 2.0,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::WHITE,
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.5),
+                offset: Vector::new(0.0, 2.0),
+                blur_radius: 7.0,
+            },
+            snap: false,
+        },
+        button::Status::Pressed => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.2, 0.2, 0.23))),
+            border: Border {
+                color: Color::from_rgba(0.45, 0.45, 0.55, 0.7),
+                width: 2.0,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.85, 0.85, 0.85),
+            shadow: Shadow {
+                color: Color::from_rgba(0.0, 0.0, 0.0, 0.3),
+                offset: Vector::new(0.0, 1.0),
+                blur_radius: 3.0,
+            },
+            snap: false,
+        },
+        button::Status::Disabled => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
+            border: Border {
+                color: Color::from_rgba(0.2, 0.2, 0.2, 0.3),
+                width: 2.0,
+                radius: Radius::from(12.0),
+            },
+            text_color: Color::from_rgb(0.4, 0.4, 0.4),
+            shadow: Shadow::default(),
+            snap: false,
+        },
+    }
+}
+
 pub fn compact_icon_button_style(_theme: &Theme, status: button::Status) -> button::Style {
     match status {
         button::Status::Active => button::Style {

@@ -6,8 +6,9 @@ use crate::app::styles::{compact_icon_button_style, sleek_scrollbar_style};
 use crate::constants::sidebar::*;
 use crate::types::TempUnits;
 use crate::utils::csv_logger::CsvLogger;
+use crate::utils::icon_cache::IconCache;
 use iced::widget::{
-    button, column, container, row, rule, scrollable, svg, text, text_input, tooltip, Column,
+    button, column, container, image, row, rule, scrollable, svg, text, text_input, Column,
 };
 use iced::{window, Alignment, Center, Color, Element, Length, Subscription, Theme};
 use lilt::{Animated, Easing};
@@ -29,8 +30,9 @@ pub struct PlotWindow {
     sidebar_expanded: Animated<f32, Instant>,
     search_input: String,
     now: Instant,
+    icon_cache: IconCache,
 }
-type GroupedProcessesVector = Vec<(String, usize, f32, u64)>;
+type GroupedProcessesVector = Vec<(String, usize, f32, u64, image::Handle)>;
 
 #[derive(Debug, Clone)]
 pub enum PlotWindowMessage {
@@ -64,6 +66,7 @@ impl PlotWindow {
             sidebar_expanded: Animated::new(0.0).duration(300.0).easing(Easing::EaseInOut),
             search_input: String::new(),
             now: Instant::now(),
+            icon_cache: IconCache::new(),
         }
     }
 
@@ -88,7 +91,7 @@ impl PlotWindow {
             }
             PlotWindowMessage::RefreshData => {
                 self.now = Instant::now();
-                self.grouped_processes = Self::group_processes(sys);
+                self.grouped_processes = Self::group_processes(sys, &mut self.icon_cache);
 
                 if !self.search_input.is_empty() {
                     self.filtered_processes = self
@@ -211,10 +214,33 @@ impl PlotWindow {
                         self.selected_processes
                             .iter()
                             .map(|proc| {
+                                // Find icon in grouped_processes
+                                let icon_handle = self
+                                    .grouped_processes
+                                    .iter()
+                                    .find(|(name, _, _, _, _)| name == proc)
+                                    .map(|(_, _, _, _, icon)| icon.clone())
+                                    .unwrap_or_else(|| {
+                                        // Fallback: search filtered_processes if not in grouped
+                                        self.filtered_processes
+                                            .iter()
+                                            .find(|(name, _, _, _, _)| name == proc)
+                                            .map(|(_, _, _, _, icon)| icon.clone())
+                                            .unwrap_or_else(|| self.icon_cache.get_default_icon())
+                                    });
+
                                 button(
-                                    row![text(proc).size(14), text("×").size(14)]
-                                        .spacing(4)
-                                        .align_y(Center),
+                                    row![
+                                        container(image(icon_handle).width(16).height(16))
+                                            .width(20)
+                                            .height(20)
+                                            .align_x(Center)
+                                            .align_y(Center),
+                                        text(proc).size(14),
+                                        text("×").size(14)
+                                    ]
+                                    .spacing(4)
+                                    .align_y(Center),
                                 )
                                 .on_press(PlotWindowMessage::RemoveProcess(proc.clone()))
                                 .style(compact_icon_button_style)
@@ -402,14 +428,23 @@ impl PlotWindow {
             .into()
     }
 
-    /// Creates a scrollable column of process rows showing name, CPU%, memory, and add button
+    /// Creates a scrollable column of process rows showing icon, name, CPU%, memory, and add button
     fn process_column(
-        sys: &GroupedProcessesVector, // Changed to ref to use cache
+        sys: &GroupedProcessesVector,
     ) -> Column<'_, PlotWindowMessage, Theme, iced::Renderer> {
         Column::with_children(
             sys.iter()
-                .map(|(name, _count, cpu, mem)| {
+                .map(|(name, _count, cpu, mem, icon_handle)| {
                     row![
+                        container(
+                            image(icon_handle.clone())
+                                .width(16)
+                                .height(16)
+                        )
+                        .width(20)
+                        .height(20)
+                        .align_x(Center)
+                        .align_y(Center),
                         text(name.clone())
                             .size(13)
                             .width(Length::FillPortion(3))
@@ -421,7 +456,7 @@ impl PlotWindow {
                             .size(13)
                             .width(Length::Fixed(60.0)),
                         button("+")
-                            .padding([2, 5])
+                             .padding([2, 5])
                             .style(compact_icon_button_style)
                             .on_press(PlotWindowMessage::ProcessSelected(name.clone(), *cpu, *mem)),
                         text("").width(Length::Fixed(10.0)), // Spacer for scrollbar
@@ -435,27 +470,35 @@ impl PlotWindow {
         .spacing(3)
     }
     /// Groups and aggregates system processes by their name, summarizing process counts,
-    /// total CPU usage, and memory usage.
-    fn group_processes(sys: &System) -> GroupedProcessesVector {
-        let mut grouped: HashMap<String, (usize, f32, u64)> = HashMap::new(); //name -> (count, total_cpu, total_mem)
+    /// total CPU usage, memory usage, and extracts icons.
+    fn group_processes(sys: &System, icon_cache: &mut IconCache) -> GroupedProcessesVector {
+        let mut grouped: HashMap<String, (usize, f32, u64, Option<sysinfo::Pid>)> = HashMap::new(); //name -> (count, total_cpu, total_mem, first_pid)
         let cpu_count = sys.cpus().len().max(1) as f32; // Get logical core count
 
-        for (_, process) in sys.processes() {
+        for (pid, process) in sys.processes() {
             let name = process.name().to_string_lossy().to_string();
             // Normalize CPU usage
             let normalized_cpu = process.cpu_usage() / cpu_count;
             grouped
-                .entry(name)
-                .and_modify(|(count, cpu, mem)| {
+                .entry(name.clone())
+                .and_modify(|(count, cpu, mem, _)| {
                     *count += 1;
                     *cpu += normalized_cpu;
                     *mem += process.memory();
                 })
-                .or_insert((1, normalized_cpu, process.memory()));
+                .or_insert((1, normalized_cpu, process.memory(), Some(*pid)));
         }
         let mut processes: Vec<_> = grouped
             .into_iter()
-            .map(|(name, (count, cpu, mem))| (name, count, cpu, mem))
+            .map(|(name, (count, cpu, mem, first_pid))| {
+                // Get icon using process name and PID
+                let icon = if let Some(pid) = first_pid {
+                    icon_cache.get_icon(&name, pid)
+                } else {
+                    icon_cache.get_icon(&name, sysinfo::Pid::from(0))
+                };
+                (name, count, cpu, mem, icon)
+            })
             .collect();
         processes.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
         processes
@@ -473,8 +516,8 @@ impl PlotWindow {
                 // Find this process in the grouped data
                 self.grouped_processes
                     .iter()
-                    .find(|(name, _, _, _)| name == proc_name)
-                    .map(|(name, _count, cpu, mem)| {
+                    .find(|(name, _, _, _, _)| name == proc_name)
+                    .map(|(name, _count, cpu, mem, _icon)| {
                         format!("{}={:.1}%@{}MB", name, cpu, mem / 1024 / 1024)
                     })
             })

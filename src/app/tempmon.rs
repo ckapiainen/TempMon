@@ -51,7 +51,7 @@ pub enum TempMonMessage {
     PlotWindow(PlotWindowMessage),
 }
 #[derive(Clone, Debug)]
-enum Screen {
+pub enum Screen {
     Main,
     Plotter,
 }
@@ -538,11 +538,11 @@ impl TempMon {
             Screen::Plotter => self.plot_window.view().map(TempMonMessage::PlotWindow),
         };
         if self.show_settings_modal {
-            self.settings.view(layout::with_header(page))
+            self.settings.view(layout::with_header(page, &self.current_screen))
         } else if self.show_exit_modal {
-            exit_confirmation_modal::exit_confirmation_modal(layout::with_header(page))
+            exit_confirmation_modal::exit_confirmation_modal(layout::with_header(page, &self.current_screen))
         } else {
-            layout::with_header(page)
+            layout::with_header(page, &self.current_screen)
         }
     }
 
