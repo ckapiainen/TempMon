@@ -1,11 +1,18 @@
-# ![project_title.png](assets/repository/project_title.png)
+# ![project_title.png](assets/repository/header.png)
 
-Built with Rust and the [iced](https://iced.rs/) GUI framework, TempMon provides lightweight real-time hardware
-monitoring with a clean, minimal interface.
+<div align="center">
+<img src="assets/repository/main.gif" width="48%" />
+<img src="assets/repository/plot_window.png" width="48%" />
+</div>
+
+Built with [iced](https://iced.rs/), TempMon is fully native and provides lightweight real-time hardware
+monitoring with a clean, minimal interface. In addition to live metrics, TempMon allows users to monitor specific
+currently running processes
+and log historical process and component data for later analysis.
 
 ## How It Works
 
-TempMon uses multiple data sources for comprehensive hardware monitoring:
+TempMon uses LibreHardwareMonitor lib running as a service for most of its data:
 
 ### LibreHardwareMonitor Service
 
@@ -14,36 +21,24 @@ Communicates with the **[LibreHardwareMonitor (LHM)](https://github.com/jacobtre
 - 🔒 **No Admin Required** - Service runs elevated once, clients run without UAC prompts
 - Provides: CPU/GPU temperatures, power consumption, voltages, fan speeds, and more
 
-### Win32 Performance API
-
-Direct Win32 API PDH queries for real-time metrics:
-
-- 📊 **CPU Frequency** - Real-time processor performance monitoring
-- Planned to work independently as fallback with ```sysinfo``` if LHM service is unavailable
-
-### Sysinfo
-
-Cross-platform system information library for basic CPU metrics:
-
-- 💻 **CPU Information** - Name, core count, base frequency
-- 📈 **Usage Monitoring** - Global and per-core CPU utilization
-- Lightweight baseline metrics collection
+This service gets installed along with a required driver automatically using the installer.
 
 ## Features
 
 ### Current
 
-- ✅ CPU metrics collection (temperature, usage, power draw, frequency)
+- ✅ CPU & GPU metrics collection
+- ✅ Real time plotting for CPU & GPU
+- ✅ Process specific monitoring & logging
 - ✅ System tray icon when minimized
+- ✅ Settings for updating interval, themes, startup behavior and more
 - ✅ CSV logging for historical data
-- ✅ Real time plotting for CPU
 
-### Planned for v1.0-v2.0
+### Roadmap for v1.0-v2.0
 
-- 🚧 Real-time and historical data visualization with charts
-- 🚧 GPU and other hardware monitoring
+- 🚧 Historical data visualization with charts
+- 🚧 Other hardware monitoring
 - 🚧 Detailed system information
-- 🚧 Process specific logging
 - 🚧 Application state persistence
 - 🚧 Linux port
 - And more...
