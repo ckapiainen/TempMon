@@ -16,6 +16,12 @@ use std::collections::HashMap;
 use std::time::Instant;
 use sysinfo::System;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PlotTab {
+    LiveData,
+    Historical,
+}
+
 //TODO: Add tooltip about the memory usage: "Resident Set Size (RSS) - includes shared resources like DLLs. Higher than Task Manager's Private Working Set.",
 // TODO: Sort processes by CPU usage or mem usage
 pub struct PlotWindow {
@@ -31,6 +37,8 @@ pub struct PlotWindow {
     search_input: String,
     now: Instant,
     icon_cache: IconCache,
+    // Tab state
+    active_tab: PlotTab,
 }
 type GroupedProcessesVector = Vec<(String, usize, f32, u64, image::Handle)>;
 
@@ -45,6 +53,7 @@ pub enum PlotWindowMessage {
     SearchInput(String),
     ProcessSelected(String, f32, u64),
     RemoveProcess(String),
+    TabSelected(PlotTab),
 }
 //TODO: toggle show/hide for gpu
 
@@ -67,6 +76,7 @@ impl PlotWindow {
             search_input: String::new(),
             now: Instant::now(),
             icon_cache: IconCache::new(),
+            active_tab: PlotTab::LiveData,
         }
     }
 
@@ -140,6 +150,9 @@ impl PlotWindow {
             PlotWindowMessage::RemoveProcess(proc) => {
                 self.selected_processes.retain(|p| p != &proc);
             }
+            PlotWindowMessage::TabSelected(tab) => {
+                self.active_tab = tab;
+            }
         }
     }
 
@@ -153,8 +166,62 @@ impl PlotWindow {
         }
     }
 
-    /// Renders the plot window UI with graphs and animated process monitoring sidebar
-    pub fn view<'a>(&'a self) -> Element<'a, PlotWindowMessage> {
+    /// Renders the tab bar at the top of the plot window
+    fn view_tab_bar(&self) -> Element<'_, PlotWindowMessage> {
+        let live_data_btn = button(
+            container(text("Live Data").size(14))
+                .padding([4, 12])
+                .align_x(Center)
+                .align_y(Center),
+        )
+        .on_press(PlotWindowMessage::TabSelected(PlotTab::LiveData))
+        .style(if self.active_tab == PlotTab::LiveData {
+            styles::active_header_button_style
+        } else {
+            styles::header_button_style
+        });
+
+        let historical_btn = button(
+            container(text("Historical").size(14))
+                .padding([4, 12])
+                .align_x(Center)
+                .align_y(Center),
+        )
+        .on_press(PlotWindowMessage::TabSelected(PlotTab::Historical))
+        .style(if self.active_tab == PlotTab::Historical {
+            styles::active_header_button_style
+        } else {
+            styles::header_button_style
+        });
+
+        container(
+            row![live_data_btn, historical_btn]
+                .spacing(8)
+                .align_y(Center),
+        )
+        .padding(6)
+        .width(Length::Fill)
+        .center_x(Length::Fill)
+        .into()
+    }
+
+    fn view_historical_tab(&self) -> Element<'_, PlotWindowMessage> {
+        container(text("").size(24).style(|_| text::Style {
+            color: Some(Color::from_rgb(0.8, 0.8, 0.8)),
+        }))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .style(|_theme| container::Style {
+            background: Some(iced::Background::Color(Color::from_rgb(0.12, 0.12, 0.13))),
+            ..Default::default()
+        })
+        .into()
+    }
+
+    /// Renders the live data tab with all graphs and sidebar
+    fn view_live_data_tab(&self) -> Element<'_, PlotWindowMessage> {
         let sidebar_animation_factor = self
             .sidebar_expanded
             .animate(std::convert::identity, self.now);
@@ -428,6 +495,22 @@ impl PlotWindow {
             .into()
     }
 
+    /// Renders the plot window UI with tab bar and tab content
+    pub fn view<'a>(&'a self) -> Element<'a, PlotWindowMessage> {
+        let tab_bar = self.view_tab_bar();
+
+        let tab_content = match self.active_tab {
+            PlotTab::LiveData => self.view_live_data_tab(),
+            PlotTab::Historical => self.view_historical_tab(),
+        };
+
+        column![tab_bar, tab_content]
+            .spacing(0)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+
     /// Creates a scrollable column of process rows showing icon, name, CPU%, memory, and add button
     fn process_column(
         sys: &GroupedProcessesVector,
@@ -436,15 +519,11 @@ impl PlotWindow {
             sys.iter()
                 .map(|(name, _count, cpu, mem, icon_handle)| {
                     row![
-                        container(
-                            image(icon_handle.clone())
-                                .width(16)
-                                .height(16)
-                        )
-                        .width(20)
-                        .height(20)
-                        .align_x(Center)
-                        .align_y(Center),
+                        container(image(icon_handle.clone()).width(16).height(16))
+                            .width(20)
+                            .height(20)
+                            .align_x(Center)
+                            .align_y(Center),
                         text(name.clone())
                             .size(13)
                             .width(Length::FillPortion(3))
@@ -456,7 +535,7 @@ impl PlotWindow {
                             .size(13)
                             .width(Length::Fixed(60.0)),
                         button("+")
-                             .padding([2, 5])
+                            .padding([2, 5])
                             .style(compact_icon_button_style)
                             .on_press(PlotWindowMessage::ProcessSelected(name.clone(), *cpu, *mem)),
                         text("").width(Length::Fixed(10.0)), // Spacer for scrollbar
