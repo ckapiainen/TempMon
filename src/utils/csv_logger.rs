@@ -44,7 +44,7 @@ impl CsvLogger {
         };
         fs::create_dir_all(&dir)?;
         let date_str = Local::now().format("%d-%m-%Y").to_string();
-        let path = dir.join(format!("{}_cpu_logs.csv", date_str));
+        let path = dir.join(format!("{}_hardware_logs.csv", date_str));
 
         let wtr = Self::open_csv_writer(&path)?;
 
@@ -67,6 +67,21 @@ impl CsvLogger {
     //     self.path = new_path;
     //     self.wtr = Self::open_csv_writer(&self.path).unwrap();
     // }
+
+    pub fn list_logs_files(&self) -> Result<Vec<PathBuf>> {
+        let logs_dir = Self::get_logs_dir();
+        let mut log_files = vec![];
+        if logs_dir.exists() {
+            for entry in fs::read_dir(logs_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("csv") {
+                    log_files.push(path);
+                }
+            }
+        }
+        Ok(log_files)
+    }
     pub fn read(&self) -> Result<Vec<HardwareLogEntry>> {
         let mut rdr = csv::ReaderBuilder::new()
             .delimiter(b';')
@@ -154,6 +169,7 @@ impl CsvLogger {
                 "timestamp",
                 "selected_process",
                 "component_type",
+                "model_name",
                 "temperature_unit",
                 "temperature",
                 "usage",
@@ -183,6 +199,7 @@ mod tests {
             timestamp: Local::now().to_string(),
             selected_process: "test_process".to_string(),
             component_type: ComponentType::CPU,
+            model_name: "AMD".to_string(),
             temperature_unit: "Celsius".to_string(),
             temperature: 65.5,
             usage: 45.2,
@@ -216,6 +233,7 @@ mod tests {
             timestamp: "2025-11-18 10:00:00".to_string(),
             selected_process: "test_process".to_string(),
             component_type: ComponentType::CPU,
+            model_name: "AMD".to_string(),
             temperature_unit: "C".to_string(),
             temperature: 65.0,
             usage: 50.0,
@@ -237,6 +255,7 @@ mod tests {
             timestamp: "2025-11-18 11:00:00".to_string(),
             selected_process: "test_process".to_string(),
             component_type: ComponentType::CPU,
+            model_name: "AMD".to_string(),
             temperature_unit: "C".to_string(),
             temperature: 70.0,
             usage: 60.0,
@@ -281,6 +300,7 @@ mod tests {
                 timestamp: format!("2025-11-18 10:{:02}:00", i),
                 selected_process: "test_process".to_string(),
                 component_type: ComponentType::CPU,
+                model_name: "AMD".to_string(),
                 temperature_unit: "C".to_string(),
                 temperature: 65.0 + i as f32,
                 usage: 50.0,

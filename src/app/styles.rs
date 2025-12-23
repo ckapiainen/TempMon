@@ -517,9 +517,15 @@ pub fn thin_scrollbar_style(_theme: &Theme, _status: scrollable::Status) -> scro
 /// Sleek, rounded, thin scrollbar style for modern UI
 pub fn sleek_scrollbar_style(_theme: &Theme, status: scrollable::Status) -> scrollable::Style {
     let scroller_background = match status {
-        scrollable::Status::Active { .. } => Background::Color(Color::from_rgba(0.6, 0.6, 0.6, 0.4)),
-        scrollable::Status::Hovered { .. } => Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.6)),
-        scrollable::Status::Dragged { .. } => Background::Color(Color::from_rgba(0.75, 0.75, 0.75, 0.7)),
+        scrollable::Status::Active { .. } => {
+            Background::Color(Color::from_rgba(0.6, 0.6, 0.6, 0.4))
+        }
+        scrollable::Status::Hovered { .. } => {
+            Background::Color(Color::from_rgba(0.7, 0.7, 0.7, 0.6))
+        }
+        scrollable::Status::Dragged { .. } => {
+            Background::Color(Color::from_rgba(0.75, 0.75, 0.75, 0.7))
+        }
     };
 
     scrollable::Style {
@@ -614,5 +620,63 @@ pub fn stats_container_style(_theme: &Theme) -> container::Style {
         shadow: Shadow::default(),
         text_color: Some(Color::from_rgb(0.7, 0.7, 0.7)),
         snap: false,
+    }
+}
+
+/// Style for file list rows in data_logs tab
+pub fn file_row_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.15, 0.15, 0.16))),
+            border: Border {
+                color: Color::from_rgba(0.25, 0.25, 0.3, 0.3),
+                width: 1.0,
+                radius: Radius::from(4.0),
+            },
+            text_color: Color::from_rgb(0.85, 0.85, 0.85),
+            shadow: Shadow::default(),
+            snap: false,
+        },
+        button::Status::Hovered => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.20, 0.20, 0.22))),
+            border: Border {
+                color: Color::from_rgba(0.35, 0.35, 0.4, 0.5),
+                width: 1.0,
+                radius: Radius::from(4.0),
+            },
+            text_color: Color::WHITE,
+            shadow: Shadow::default(),
+            snap: false,
+        },
+        button::Status::Pressed => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.12, 0.12, 0.13))),
+            border: Border {
+                color: Color::from_rgba(0.25, 0.25, 0.3, 0.3),
+                width: 1.0,
+                radius: Radius::from(4.0),
+            },
+            text_color: Color::from_rgb(0.7, 0.7, 0.7),
+            shadow: Shadow::default(),
+            snap: false,
+        },
+        button::Status::Disabled => button::Style::default(),
+    }
+}
+
+/// Style for selected file row in data_logs tab
+pub fn selected_row_style(_theme: &Theme, status: button::Status) -> button::Style {
+    match status {
+        button::Status::Active => button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.25, 0.35, 0.45))),
+            border: Border {
+                color: Color::from_rgba(0.4, 0.5, 0.6, 0.8),
+                width: 2.0,
+                radius: Radius::from(4.0),
+            },
+            text_color: Color::WHITE,
+            shadow: Shadow::default(),
+            snap: false,
+        },
+        _ => file_row_style(_theme, status),
     }
 }

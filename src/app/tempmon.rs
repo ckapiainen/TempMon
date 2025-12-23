@@ -448,6 +448,7 @@ impl TempMon {
                     timestamp: chrono::Local::now().to_rfc3339(),
                     selected_process: self.plot_window.format_selected_processes_for_csv(), // No system arg needed, uses cache
                     component_type: ComponentType::CPU,
+                    model_name: self.cpu_data.name.clone(),
                     temperature_unit: selected_unit.to_string(),
                     temperature: converted_temp,
                     usage: self.cpu_data.usage,
@@ -493,6 +494,7 @@ impl TempMon {
                             timestamp: chrono::Local::now().to_rfc3339(),
                             selected_process: self.plot_window.format_selected_processes_for_csv(), // No system arg needed, uses cache
                             component_type: ComponentType::GPU,
+                            model_name: self.gpu_data[i].name.clone(),
                             temperature_unit: selected_unit.to_string(),
                             temperature: converted_temp,
                             usage: self.gpu_data[i].core_load,
@@ -538,9 +540,13 @@ impl TempMon {
             Screen::Plotter => self.plot_window.view().map(TempMonMessage::PlotWindow),
         };
         if self.show_settings_modal {
-            self.settings.view(layout::with_header(page, &self.current_screen))
+            self.settings
+                .view(layout::with_header(page, &self.current_screen))
         } else if self.show_exit_modal {
-            exit_confirmation_modal::exit_confirmation_modal(layout::with_header(page, &self.current_screen))
+            exit_confirmation_modal::exit_confirmation_modal(layout::with_header(
+                page,
+                &self.current_screen,
+            ))
         } else {
             layout::with_header(page, &self.current_screen)
         }

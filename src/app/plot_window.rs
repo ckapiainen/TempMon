@@ -1,3 +1,4 @@
+use crate::app::data_logs::history_tab::{HistoricalMessage, HistoricalTab};
 use crate::app::graphs::cpu_power_usage::CPUPowerAndUsageGraph;
 use crate::app::graphs::gpu_power_usage::GPUPowerAndUsageGraph;
 use crate::app::graphs::temp_graph::TemperatureGraph;
@@ -39,6 +40,8 @@ pub struct PlotWindow {
     icon_cache: IconCache,
     // Tab state
     active_tab: PlotTab,
+    // Historical tab
+    historical_tab: HistoricalTab,
 }
 type GroupedProcessesVector = Vec<(String, usize, f32, u64, image::Handle)>;
 
@@ -54,6 +57,7 @@ pub enum PlotWindowMessage {
     ProcessSelected(String, f32, u64),
     RemoveProcess(String),
     TabSelected(PlotTab),
+    Historical(HistoricalMessage),
 }
 //TODO: toggle show/hide for gpu
 
@@ -77,6 +81,7 @@ impl PlotWindow {
             now: Instant::now(),
             icon_cache: IconCache::new(),
             active_tab: PlotTab::LiveData,
+            historical_tab: HistoricalTab::new(),
         }
     }
 
@@ -152,6 +157,15 @@ impl PlotWindow {
             }
             PlotWindowMessage::TabSelected(tab) => {
                 self.active_tab = tab;
+
+                // Load data_logs files when Historical tab is first opened
+                if tab == PlotTab::Historical && self.historical_tab.log_files.is_empty() {
+                    self.historical_tab
+                        .update(HistoricalMessage::LoadFiles, csv_logger);
+                }
+            }
+            PlotWindowMessage::Historical(msg) => {
+                self.historical_tab.update(msg, csv_logger);
             }
         }
     }
@@ -206,18 +220,9 @@ impl PlotWindow {
     }
 
     fn view_historical_tab(&self) -> Element<'_, PlotWindowMessage> {
-        container(text("").size(24).style(|_| text::Style {
-            color: Some(Color::from_rgb(0.8, 0.8, 0.8)),
-        }))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
-        .style(|_theme| container::Style {
-            background: Some(iced::Background::Color(Color::from_rgb(0.12, 0.12, 0.13))),
-            ..Default::default()
-        })
-        .into()
+        self.historical_tab
+            .view()
+            .map(PlotWindowMessage::Historical)
     }
 
     /// Renders the live data tab with all graphs and sidebar

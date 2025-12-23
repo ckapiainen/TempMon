@@ -32,6 +32,7 @@ pub struct HardwareLogEntry {
     pub timestamp: String,
     pub selected_process: String,
     pub component_type: ComponentType,
+    pub model_name: String,
     pub temperature_unit: String,
     pub temperature: f32,
     pub usage: f32,

@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use tray_icon::menu::{Menu, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 

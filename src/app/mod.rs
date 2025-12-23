@@ -1,4 +1,5 @@
 mod cards;
+pub mod data_logs;
 mod exit_confirmation_modal;
 mod graphs;
 pub mod layout;
