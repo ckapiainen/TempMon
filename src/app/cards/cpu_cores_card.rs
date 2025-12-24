@@ -2,7 +2,9 @@ use crate::app::styles;
 use crate::assets;
 use crate::constants::animation::*;
 use crate::types::{CpuBarChartState, CpuCoreLHMQuery};
-use iced::widget::{button, column, container, progress_bar, rich_text, row, rule, span, svg, text, Row};
+use iced::widget::{
+    button, column, container, progress_bar, rich_text, row, rule, scrollable, span, svg, text, Row,
+};
 use iced::{font, never, Center, Element, Fill, Font};
 
 use crate::app::main_window::MainWindowMessage;
@@ -72,24 +74,26 @@ pub fn render_cores_card<'a>(
     .width(Fill)
     .style(styles::header_button_style);
 
-    let cores_card_content = if is_expanded {
-        // Expanded view - show full progress bars
+    let cores_card_content: Element<'a, MainWindowMessage> = if is_expanded {
+        // Expanded view - show full progress bars with horizontal scrolling
         let header_row = row![cores_header_button, usage_button, power_button,]
             .align_y(Center)
             .spacing(8)
             .width(Fill);
 
-        column![
-            header_row,
-            rule::horizontal(1),
-            match cpu_bar_chart_state {
-                CpuBarChartState::Usage => core_usage_row,
-                CpuBarChartState::Power => core_power_row,
-            }
-        ]
-        .align_x(Center)
-        .spacing(10)
-        .padding(10)
+        let scrollable_bars = scrollable(match cpu_bar_chart_state {
+            CpuBarChartState::Usage => core_usage_row,
+            CpuBarChartState::Power => core_power_row,
+        })
+        .direction(scrollable::Direction::Horizontal(
+            scrollable::Scrollbar::new().scroller_width(4),
+        ));
+
+        column![header_row, rule::horizontal(1), scrollable_bars]
+            .align_x(Center)
+            .spacing(10)
+            .padding(10)
+            .into()
     } else {
         // Collapsed view - show summary with buttons
         let mode_text = match cpu_bar_chart_state {
@@ -114,6 +118,7 @@ pub fn render_cores_card<'a>(
         .spacing(8)
         .width(Fill)]
         .padding(10)
+        .into()
     };
 
     container(cores_card_content)
@@ -126,9 +131,9 @@ pub fn render_cores_card<'a>(
 }
 
 /// Builds the usage bar chart with vertical progress bars for each core.
-fn build_usage_bar_chart<'a>(
-    core_usage_vector: &'a Vec<CpuCoreLHMQuery>,
-) -> Vec<Element<'a, MainWindowMessage>> {
+fn build_usage_bar_chart(
+    core_usage_vector: &Vec<CpuCoreLHMQuery>,
+) -> Vec<Element<MainWindowMessage>> {
     let mut usage_bar_chart: Vec<Element<MainWindowMessage>> = Vec::new();
 
     for (i, core) in core_usage_vector.iter().enumerate() {
@@ -168,10 +173,10 @@ fn build_usage_bar_chart<'a>(
 }
 
 /// Builds the power bar chart with vertical progress bars for each core.
-fn build_power_bar_chart<'a>(
-    core_power_draw_vector: &'a Vec<CpuCoreLHMQuery>,
+fn build_power_bar_chart(
+    core_power_draw_vector: &Vec<CpuCoreLHMQuery>,
     core_count: usize,
-) -> Vec<Element<'a, MainWindowMessage>> {
+) -> Vec<Element<MainWindowMessage>> {
     let mut power_bar_chart: Vec<Element<MainWindowMessage>> = Vec::new();
 
     for (i, core) in core_power_draw_vector.iter().enumerate() {
