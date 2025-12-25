@@ -1,14 +1,16 @@
 use super::file_list;
 use super::metadata::LogFileMetadata;
 use crate::utils::csv_logger::CsvLogger;
-use iced::widget::{container, text};
+use iced::widget::{column, container, text};
 use iced::{Color, Element, Length};
 use std::path::PathBuf;
+use crate::app::data_logs::history_graphs::GPUDataLog;
 
 pub struct HistoricalTab {
     pub log_files: Vec<LogFileMetadata>,
     pub selected_file: Option<PathBuf>,
     pub show_only_process_logs: bool,
+    gpu_graph: Option<GPUDataLog>,
 }
 
 #[derive(Debug, Clone)]
@@ -16,6 +18,7 @@ pub enum HistoricalMessage {
     LoadFiles,
     FileSelected(PathBuf),
     ToggleProcessFilter(bool),
+    GPUPlotMessage(iced_plot::PlotUiMessage),
 }
 
 impl HistoricalTab {
@@ -24,6 +27,7 @@ impl HistoricalTab {
             log_files: Vec::new(),
             selected_file: None,
             show_only_process_logs: false,
+            gpu_graph: None,
         }
     }
 
@@ -34,10 +38,28 @@ impl HistoricalTab {
             }
             HistoricalMessage::FileSelected(path) => {
                 self.selected_file = Some(path.clone());
-                // TODO: In future, load the file data into graphs
+                let result = csv_logger.read(path.to_str().unwrap().to_string());
+                let mut gpu_data = Vec::new();
+                for entry in result.unwrap() {
+                    if entry.component_type == crate::types::ComponentType::GPU {
+                        gpu_data.push(entry);
+                    }
+                }
+
+                // Single graph with all GPU data
+                if !gpu_data.is_empty() {
+                    self.gpu_graph = Some(GPUDataLog::new(gpu_data));
+                } else {
+                    self.gpu_graph = None;
+                }
             }
             HistoricalMessage::ToggleProcessFilter(enabled) => {
                 self.show_only_process_logs = enabled;
+            }
+            HistoricalMessage::GPUPlotMessage(msg) => {
+                if let Some(graph) = &mut self.gpu_graph {
+                    graph.update_ui(msg);
+                }
             }
         }
     }
@@ -58,26 +80,44 @@ impl HistoricalTab {
             },
         );
 
-        // Selected file info graph
+        // Selected file info/graph panel
         let info_panel = if let Some(path) = &self.selected_file {
-            container(
-                text(format!(
-                    "Selected: {}\n\n",
-                    path.file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("Unknown")
-                ))
-                .size(16)
-                .style(|_| text::Style {
-                    color: Some(Color::from_rgb(0.8, 0.8, 0.8)),
-                }),
-            )
-            .width(Length::FillPortion(2))
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .style(crate::app::styles::card_container_style)
+            if let Some(graph) = &self.gpu_graph {
+                // Render GPU graph
+                container(
+                    column![
+                        text(format!(
+                            "GPU History - {}",
+                            path.file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("Unknown")
+                        ))
+                        .size(16),
+                        graph.view().map(HistoricalMessage::GPUPlotMessage)
+                    ]
+                    .spacing(10)
+                )
+                .width(Length::FillPortion(2))
+                .height(Length::Fill)
+                .padding(15)
+                .style(crate::app::styles::card_container_style)
+            } else {
+                // No GPU data message
+                container(
+                    text("No GPU data in selected file")
+                        .size(16)
+                        .style(|_| text::Style {
+                            color: Some(Color::from_rgb(0.8, 0.8, 0.8)),
+                        }),
+                )
+                .width(Length::FillPortion(2))
+                .height(Length::Fill)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .style(crate::app::styles::card_container_style)
+            }
         } else {
+            // No file selected message
             container(
                 text("Select a log file from the list")
                     .size(16)

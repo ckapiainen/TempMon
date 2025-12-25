@@ -82,14 +82,13 @@ impl CsvLogger {
         }
         Ok(log_files)
     }
-    pub fn read(&self) -> Result<Vec<HardwareLogEntry>> {
+    pub fn read(&self, path: String) -> Result<Vec<HardwareLogEntry>> {
         let mut rdr = csv::ReaderBuilder::new()
             .delimiter(b';')
-            .from_path(&self.path)?;
+            .from_path(path)?;
         let mut result = vec![];
         for data in rdr.deserialize() {
             let record: HardwareLogEntry = data?;
-            println!("{:?}", record);
             result.push(record);
         }
         Ok(result)
@@ -210,7 +209,7 @@ mod tests {
         logger.flush_buffer().unwrap();
 
         // Read back and verify
-        let read_entries = logger.read().unwrap();
+        let read_entries = logger.read(logger.path.to_str().unwrap().to_string()).unwrap();
         assert_eq!(read_entries.len(), 1);
         assert_eq!(read_entries[0].temperature, 65.5);
         assert_eq!(read_entries[0].usage, 45.2);
@@ -316,7 +315,7 @@ mod tests {
         assert_eq!(logger.write_buffer.len(), 0);
 
         // Verify the data was written to the file
-        let read_entries = logger.read().unwrap();
+        let read_entries = logger.read(logger.path.to_str().unwrap().to_string()).unwrap();
         assert_eq!(read_entries.len(), 5);
     }
 }
