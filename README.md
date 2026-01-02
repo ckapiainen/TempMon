@@ -1,8 +1,8 @@
 # ![project_title.png](assets/repository/header.png)
 
 <div align="center">
-<img src="assets/repository/main.gif" width="48%" />
-<img src="assets/repository/plot_window.png" width="48%" />
+<img src="assets/repository/main_page.gif" width="48%" />
+<img src="assets/repository/plot_window.gif" width="48%" />
 </div>
 
 Built with [iced](https://iced.rs/), TempMon is fully native and provides lightweight real-time hardware
