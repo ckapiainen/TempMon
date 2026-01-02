@@ -11,7 +11,7 @@ use crate::utils::icon_cache::IconCache;
 use iced::widget::{
     button, column, container, image, row, rule, scrollable, svg, text, text_input, Column,
 };
-use iced::{window, Alignment, Center, Color, Element, Length, Subscription, Theme};
+use iced::{window, Alignment, Center, Color, Element, Length, Subscription, Task, Theme};
 use lilt::{Animated, Easing};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -92,17 +92,23 @@ impl PlotWindow {
         sys: &System,
         units: TempUnits,
         gpu_data: &[crate::collectors::GpuData],
-    ) {
+    ) -> Task<PlotWindowMessage> {
         match message {
-            PlotWindowMessage::TempPlotMessage(msg) => self.temp_graph.update_ui(msg),
+            PlotWindowMessage::TempPlotMessage(msg) => {
+                self.temp_graph.update_ui(msg);
+                Task::none()
+            }
             PlotWindowMessage::CPUPowerUsagePlotMessage(msg) => {
-                self.cpu_power_usage_graph.update_ui(msg)
+                self.cpu_power_usage_graph.update_ui(msg);
+                Task::none()
             }
             PlotWindowMessage::GPUPowerUsagePlotMessage(msg) => {
-                self.gpu_power_usage_graph.update_ui(msg)
+                self.gpu_power_usage_graph.update_ui(msg);
+                Task::none()
             }
             PlotWindowMessage::Animate(now) => {
                 self.now = now;
+                Task::none()
             }
             PlotWindowMessage::RefreshData => {
                 self.now = Instant::now();
@@ -119,6 +125,7 @@ impl PlotWindow {
                 self.temp_graph.update_data(csv_logger, units, gpu_data);
                 self.cpu_power_usage_graph.update_data(csv_logger);
                 self.gpu_power_usage_graph.update_data(csv_logger, gpu_data);
+                Task::none()
             }
 
             // Sidebar controls
@@ -130,13 +137,14 @@ impl PlotWindow {
                     1.0
                 };
                 self.sidebar_expanded.transition(new_value, Instant::now());
+                Task::none()
             }
             PlotWindowMessage::SearchInput(input) => {
                 // Empty the filtered list if the input is empty
                 if input.is_empty() {
                     self.filtered_processes = Vec::new();
                     self.search_input = input;
-                    return;
+                    return Task::none();
                 }
                 self.filtered_processes = self
                     .grouped_processes
@@ -144,28 +152,35 @@ impl PlotWindow {
                     .cloned()
                     .filter(|proc| proc.0.contains(&input)) //process name
                     .collect();
-                self.search_input = input
+                self.search_input = input;
+                Task::none()
             }
             PlotWindowMessage::ProcessSelected(proc_name, _cpu, _mem) => {
                 // Store just the process name; format with current metrics when logging
                 if !self.selected_processes.contains(&proc_name) {
                     self.selected_processes.push(proc_name);
                 }
+                Task::none()
             }
             PlotWindowMessage::RemoveProcess(proc) => {
                 self.selected_processes.retain(|p| p != &proc);
+                Task::none()
             }
             PlotWindowMessage::TabSelected(tab) => {
                 self.active_tab = tab;
 
                 // Load data_logs files when Historical tab is first opened
                 if tab == PlotTab::Historical && self.historical_tab.log_files.is_empty() {
-                    self.historical_tab
+                    let task = self
+                        .historical_tab
                         .update(HistoricalMessage::LoadFiles, csv_logger);
+                    return task.map(PlotWindowMessage::Historical);
                 }
+                Task::none()
             }
             PlotWindowMessage::Historical(msg) => {
-                self.historical_tab.update(msg, csv_logger);
+                let task = self.historical_tab.update(msg, csv_logger);
+                task.map(PlotWindowMessage::Historical)
             }
         }
     }

@@ -366,14 +366,14 @@ impl TempMon {
                 Task::none()
             }
             TempMonMessage::PlotWindow(msg) => {
-                self.plot_window.update(
+                let task = self.plot_window.update(
                     &self.csv_logger,
                     msg,
                     &self.system,
                     self.settings.selected_temp_units.unwrap(),
                     &self.gpu_data,
                 );
-                Task::none()
+                task.map(TempMonMessage::PlotWindow)
             }
             TempMonMessage::UpdateHardwareData => {
                 self.cpu_data.update(&mut self.system);
@@ -467,7 +467,7 @@ impl TempMon {
                     }
                 }
 
-                self.plot_window.update(
+                let _ = self.plot_window.update(
                     &self.csv_logger,
                     PlotWindowMessage::RefreshData,
                     &self.system,
@@ -512,7 +512,7 @@ impl TempMon {
                                 self.last_error = Some(error_msg);
                             }
                         }
-                        self.plot_window.update(
+                        let _ = self.plot_window.update(
                             &self.csv_logger,
                             PlotWindowMessage::RefreshData,
                             &self.system,
