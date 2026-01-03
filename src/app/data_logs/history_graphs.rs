@@ -2,11 +2,16 @@ use crate::types::HardwareLogEntry;
 use chrono::DateTime;
 use iced::{Color, Element};
 use iced_plot::{
-    LineStyle, MarkerStyle, PlotUiMessage, PlotWidget, PlotWidgetBuilder, Series, TooltipContext,
+    LineStyle, MarkerStyle, PlotUiMessage, PlotWidget, PlotWidgetBuilder, Series, Tick, TickWeight,
+    TooltipContext,
 };
 use std::collections::HashMap;
 
 const GAP_THRESHOLD_MINUTES: f64 = 1.0;
+
+pub struct CPUDataLog {
+    widget: PlotWidget,
+}
 
 pub struct GPUDataLog {
     widget: PlotWidget,
@@ -42,6 +47,212 @@ fn split_into_segments(points: Vec<[f64; 2]>) -> Vec<Vec<[f64; 2]>> {
     segments
 }
 
+impl CPUDataLog {
+    pub fn new(cpu_entries: Vec<HardwareLogEntry>) -> Self {
+        // Single CPU colors - using different shades
+        const TEMP_COLOR: Color = Color::from_rgb(1.0, 0.3, 0.0); // Red-Orange
+        const USAGE_COLOR: Color = Color::from_rgb(0.0, 0.7, 1.0); // Sky Blue
+        const POWER_COLOR: Color = Color::from_rgb(1.0, 0.7, 0.0); // Orange
+
+        // For cursor tooltip: track temperature unit changes and capture first timestamp
+        let first_ts = if !cpu_entries.is_empty() {
+            if let Ok(t) = DateTime::parse_from_rfc3339(&cpu_entries[0].timestamp) {
+                t.timestamp()
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        let mut unit_changes: Vec<(f64, String)> = Vec::new();
+        if !cpu_entries.is_empty() {
+            let mut last_unit = String::new();
+            for entry in &cpu_entries {
+                if entry.temperature_unit != last_unit {
+                    if let Ok(ts) = DateTime::parse_from_rfc3339(&entry.timestamp) {
+                        let time_min = (ts.timestamp() - first_ts) as f64 / 60.0;
+                        unit_changes.push((time_min, entry.temperature_unit.clone()));
+                        last_unit = entry.temperature_unit.clone();
+                    }
+                }
+            }
+        }
+
+        // Clone for use in both closures
+        let unit_changes_cursor = unit_changes.clone();
+        let first_ts_cursor = first_ts;
+
+        // Find the temperature unit for a given time (uses the most recent unit change)
+        let find_unit = |time: f64, changes: &[(f64, String)]| -> String {
+            changes
+                .iter()
+                .rev()
+                .find(|(t, _)| *t <= time)
+                .map(|(_, unit)| unit.clone())
+                .unwrap_or_else(|| "C".to_string())
+        };
+
+        // Format actual time from relative minutes
+        let format_time = |minutes: f64, base_ts: i64| -> String {
+            let actual_ts = base_ts + (minutes * 60.0) as i64;
+            let dt = chrono::DateTime::from_timestamp(actual_ts, 0)
+                .unwrap_or_else(|| chrono::DateTime::from_timestamp(0, 0).unwrap());
+            dt.format("%H:%M:%S").to_string()
+        };
+
+        // Start building the plot widget
+        let mut builder = PlotWidgetBuilder::new()
+            .with_x_label("Time (min)")
+            .with_tooltips(true)
+            .with_tooltip_provider(move |ctx: &TooltipContext| {
+                let unit = find_unit(ctx.x, &unit_changes);
+                let time_str = format_time(ctx.x, first_ts);
+                format!(
+                    "{} ({:.1} min)\nValue: {:.1} °{}",
+                    time_str, ctx.x, ctx.y, unit
+                )
+            })
+            .with_autoscale_on_updates(true)
+            .with_y_tick_producer(|min, max| {
+                let tick_interval = 10.0;
+                let start = (min / tick_interval).floor() * tick_interval;
+                let mut ticks = Vec::new();
+                let mut value = start;
+
+                while value <= max {
+                    if value >= min {
+                        ticks.push(Tick {
+                            value,
+                            step_size: tick_interval,
+                            line_type: TickWeight::Major,
+                        });
+                    }
+                    value += tick_interval;
+                }
+
+                ticks
+            })
+            .with_y_tick_formatter(|tick| format!("{:.0}", tick.value))
+            .with_tick_label_size(10.0)
+            .with_crosshairs(true)
+            .with_cursor_provider(move |x, y| {
+                let unit = find_unit(x, &unit_changes_cursor);
+                let time_str = format_time(x, first_ts_cursor);
+                format!("{} ({:.1} min)\nValue: {:.1} °{}", time_str, x, y, unit)
+            });
+
+        // Process CPU data if we have any entries
+        if !cpu_entries.is_empty() {
+            // Parse first timestamp as baseline (t=0)
+            let first_ts = if let Ok(t) = DateTime::parse_from_rfc3339(&cpu_entries[0].timestamp) {
+                t.timestamp()
+            } else {
+                0
+            };
+
+            // Get CPU name from first entry
+            let cpu_name = &cpu_entries[0].model_name;
+
+            // Extract temperature series (x in minutes)
+            let temp_series: Vec<[f64; 2]> = cpu_entries
+                .iter()
+                .filter_map(|e| {
+                    let ts = DateTime::parse_from_rfc3339(&e.timestamp).ok()?;
+                    let x = (ts.timestamp() - first_ts) as f64 / 60.0;
+                    Some([x, e.temperature as f64])
+                })
+                .collect();
+
+            // Extract usage series (x in minutes)
+            let usage_series: Vec<[f64; 2]> = cpu_entries
+                .iter()
+                .filter_map(|e| {
+                    let ts = DateTime::parse_from_rfc3339(&e.timestamp).ok()?;
+                    let x = (ts.timestamp() - first_ts) as f64 / 60.0;
+                    Some([x, e.usage as f64])
+                })
+                .collect();
+
+            // Extract power series (x in minutes)
+            let power_series: Vec<[f64; 2]> = cpu_entries
+                .iter()
+                .filter_map(|e| {
+                    let ts = DateTime::parse_from_rfc3339(&e.timestamp).ok()?;
+                    let x = (ts.timestamp() - first_ts) as f64 / 60.0;
+                    Some([x, e.power_draw as f64])
+                })
+                .collect();
+
+            // Add temperature series (split into segments to avoid lines across gaps)
+            let temp_segments = split_into_segments(temp_series);
+            for (seg_idx, segment) in temp_segments.into_iter().enumerate() {
+                let mut series = Series::new(
+                    segment,
+                    MarkerStyle::circle(1.0),
+                    LineStyle::Solid { width: 1.5 },
+                )
+                .with_color(TEMP_COLOR);
+
+                // Only label the first segment
+                if seg_idx == 0 {
+                    series = series.with_label(&format!("{} Temp", cpu_name));
+                }
+                builder = builder.add_series(series);
+            }
+
+            // Add usage series (split into segments)
+            let usage_segments = split_into_segments(usage_series);
+            for (seg_idx, segment) in usage_segments.into_iter().enumerate() {
+                let mut series = Series::new(
+                    segment,
+                    MarkerStyle::circle(1.0),
+                    LineStyle::Solid { width: 1.5 },
+                )
+                .with_color(USAGE_COLOR);
+
+                if seg_idx == 0 {
+                    series = series.with_label(&format!("{} Usage (%)", cpu_name));
+                }
+                builder = builder.add_series(series);
+            }
+
+            // Add power series (split into segments)
+            let power_segments = split_into_segments(power_series);
+            for (seg_idx, segment) in power_segments.into_iter().enumerate() {
+                let mut series = Series::new(
+                    segment,
+                    MarkerStyle::circle(1.0),
+                    LineStyle::Solid { width: 1.5 },
+                )
+                .with_color(POWER_COLOR);
+
+                if seg_idx == 0 {
+                    series = series.with_label(&format!("{} Power (W)", cpu_name));
+                }
+                builder = builder.add_series(series);
+            }
+        } else {
+            // Add dummy series if no data
+            let dummy_series =
+                Series::circles(vec![[0.0, 0.0]], 3.0).with_label("No CPU data available");
+            builder = builder.add_series(dummy_series);
+        }
+
+        Self {
+            widget: builder.build().unwrap(),
+        }
+    }
+
+    pub fn view(&self) -> Element<'_, PlotUiMessage> {
+        self.widget.view()
+    }
+
+    pub fn update_ui(&mut self, msg: PlotUiMessage) {
+        self.widget.update(msg);
+    }
+}
+
 impl GPUDataLog {
     pub fn new(gpu_entries: Vec<HardwareLogEntry>) -> Self {
         const TEMP_COLORS: [Color; 4] = [
@@ -65,18 +276,93 @@ impl GPUDataLog {
             Color::from_rgb(1.0, 0.9, 0.2), // Golden - GPU 3
         ];
 
+        // For cursor tooltip: track temperature unit changes and capture first timestamp
+        let first_ts = if !gpu_entries.is_empty() {
+            if let Ok(t) = DateTime::parse_from_rfc3339(&gpu_entries[0].timestamp) {
+                t.timestamp()
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        let mut unit_changes: Vec<(f64, String)> = Vec::new();
+        if !gpu_entries.is_empty() {
+            let mut last_unit = String::new();
+            for entry in &gpu_entries {
+                if entry.temperature_unit != last_unit {
+                    if let Ok(ts) = DateTime::parse_from_rfc3339(&entry.timestamp) {
+                        let time_min = (ts.timestamp() - first_ts) as f64 / 60.0;
+                        unit_changes.push((time_min, entry.temperature_unit.clone()));
+                        last_unit = entry.temperature_unit.clone();
+                    }
+                }
+            }
+        }
+
+        // Clone for use in both closures
+        let unit_changes_cursor = unit_changes.clone();
+        let first_ts_cursor = first_ts;
+
+        // Find the temperature unit for a given time (uses the most recent unit change)
+        let find_unit = |time: f64, changes: &[(f64, String)]| -> String {
+            changes
+                .iter()
+                .rev()
+                .find(|(t, _)| *t <= time)
+                .map(|(_, unit)| unit.clone())
+                .unwrap_or_else(|| "C".to_string())
+        };
+
+        // Format actual time from relative minutes
+        let format_time = |minutes: f64, base_ts: i64| -> String {
+            let actual_ts = base_ts + (minutes * 60.0) as i64;
+            let dt = chrono::DateTime::from_timestamp(actual_ts, 0)
+                .unwrap_or_else(|| chrono::DateTime::from_timestamp(0, 0).unwrap());
+            dt.format("%H:%M:%S").to_string()
+        };
+
         // Start building the plot widget
         let mut builder = PlotWidgetBuilder::new()
             .with_x_label("Time (min)")
             .with_tooltips(true)
-            .with_tooltip_provider(|ctx: &TooltipContext| {
-                format!("Time: {:.1} min\nValue: {:.1}", ctx.x, ctx.y)
+            .with_tooltip_provider(move |ctx: &TooltipContext| {
+                let unit = find_unit(ctx.x, &unit_changes);
+                let time_str = format_time(ctx.x, first_ts);
+                format!(
+                    "{} ({:.1} min)\nValue: {:.1} °{}",
+                    time_str, ctx.x, ctx.y, unit
+                )
             })
             .with_autoscale_on_updates(true)
-            .with_y_tick_formatter(|tick| format!("{:.1}", tick.value))
+            .with_y_tick_producer(|min, max| {
+                let tick_interval = 10.0;
+                let start = (min / tick_interval).floor() * tick_interval;
+                let mut ticks = Vec::new();
+                let mut value = start;
+
+                while value <= max {
+                    if value >= min {
+                        ticks.push(Tick {
+                            value,
+                            step_size: tick_interval,
+                            line_type: TickWeight::Major,
+                        });
+                    }
+                    value += tick_interval;
+                }
+
+                ticks
+            })
+            .with_y_tick_formatter(|tick| format!("{:.0}", tick.value))
             .with_tick_label_size(10.0)
             .with_crosshairs(true)
-            .with_cursor_provider(|x, y| format!("Time: {:.1} min\nValue: {:.1}", x, y));
+            .with_cursor_provider(move |x, y| {
+                let unit = find_unit(x, &unit_changes_cursor);
+                let time_str = format_time(x, first_ts_cursor);
+                format!("{} ({:.1} min)\nValue: {:.1} °{}", time_str, x, y, unit)
+            });
 
         // Process GPU data if we have any entries
         if !gpu_entries.is_empty() {
@@ -133,7 +419,6 @@ impl GPUDataLog {
                         Some([x, e.power_draw as f64])
                     })
                     .collect();
-
                 // Add temperature series (split into segments to avoid lines across gaps)
                 let temp_segments = split_into_segments(temp_series);
                 for (seg_idx, segment) in temp_segments.into_iter().enumerate() {
