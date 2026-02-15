@@ -338,6 +338,9 @@ impl TempMon {
                     }
                 }
                 Settings::save(&self.settings).expect("Error saving settings");
+                if let Err(e) = crate::utils::startup::set_start_with_windows(self.settings.start_with_windows) {
+                    eprintln!("Failed to update startup registry: {}", e);
+                }
                 self.show_settings_modal = false;
                 Task::none()
             }

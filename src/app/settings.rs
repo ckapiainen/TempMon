@@ -3,6 +3,7 @@ use crate::app::styles;
 use crate::app::tempmon::TempMonMessage;
 use crate::types::{Config, TempUnits};
 use crate::utils::service::{get_service_state, ServiceState};
+use crate::utils::startup;
 use anyhow::{Context, Result};
 use iced::widget::{
     button, checkbox, column, container, pick_list, row, rule, scrollable, slider, text, text_input,
@@ -96,13 +97,16 @@ impl Settings {
 
         dbg!("Loaded config from disk");
 
+        // Sync start_with_windows with actual registry state
+        let start_with_windows = startup::is_start_with_windows_enabled();
+
         // Thresholds are stored in the selected unit, use them as-is for display
         Ok(Self {
             pawnio_status: pawnio,
             lhm_service_status: lhm_service,
             theme,
             start_minimized: config.start_minimized,
-            start_with_windows: config.start_with_windows,
+            start_with_windows,
             selected_temp_units: Some(config.selected_temp_units),
             data_update_interval: config.data_update_interval,
             temp_low_threshold: config.temp_low_threshold,
